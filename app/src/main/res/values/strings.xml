@@ -1,0 +1,22 @@
+<resources>
+    <string name="app_name">MQTT_notify</string>
+    <string name="notify_sound">Звук для уведомления</string>
+    <string name="mqtt">Введите имя MQTT топика</string>
+    <string name="password">Введите пароль</string>
+    <string name="psw">Пароль:</string>
+    <string name="input_login">Введите логин</string>
+    <string name="login">Логин:</string>
+    <string name="port">Порт сервера</string>
+    <string name="port_">Порт сервера:</string>
+    <string name="addres_server">Адрес сервера:</string>
+    <string name="addres_">Адрес сервера</string>
+    <string name="slct_sound">Выбрать звук\n уведомления</string>
+    <string name="stat_service">Запустить\n сервис</string>
+    <string name="stop_service">Остановить\n сервис</string>
+    <string name="mqtt_topic_name">Имя MQTT топика:</string>
+    <string-array name="sounds_list">
+        <item>Звук 1</item>
+        <item>Звук 2</item>
+        <item>Звук 3</item>
+    </string-array>
+</resources>

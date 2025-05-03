@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="4"
+            android:hint="account"
+            android:text="" />
+
+        <TextView
+            android:id="@+id/tvAccount"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="MQTT account"
+            android:text=""
+            android:textSize="18sp" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="4"
+            android:text="MQTT UID" />
+
+        <TextView
+            android:id="@+id/tvUID"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="MQTT UID"
+            android:textSize="18sp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <!-- Имя MQTT топика -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="4"
+            android:text="MQTT topic:" />
+
+        <EditText
+            android:id="@+id/etTopicName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="@string/mqtt" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+    <!-- Кодовое слово -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight="4"
+        android:text="Кодовое слово:" />
+
+    <EditText
+        android:id="@+id/etCodeWord"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:hint="Введите кодовое слово" />
+    </LinearLayout>
+
+    <!-- Выбор звука для уведомления -->
+    <TextView
+        android:id="@+id/tvSound"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:hint="Звук уведомления"
+        android:text="@string/notify_sound"
+        android:textSize="18sp" />
+
+    <!-- Кнопки запуска и остановки сервиса -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        <!--        android:gravity="center_horizontal"-->
+
+        <Button
+            android:id="@+id/btnStart"
+            style="@android:style/Widget.DeviceDefault.Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/stat_service"
+            android:textSize="14sp" />
+
+        <Button
+            android:id="@+id/btnStop"
+            style="@android:style/Widget.DeviceDefault.Button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/stop_service"
+            android:textSize="14sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tvStat"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""/>
+
+    <TextView
+        android:id="@+id/tvAlarm"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textColor="?android:attr/colorPressedHighlight"
+        android:textStyle="italic" />
+
+    <TextView
+        android:id="@+id/tvTopic"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/tvMsg"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="" />
+
+</LinearLayout>
