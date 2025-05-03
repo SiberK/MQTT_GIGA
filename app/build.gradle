@@ -44,6 +44,8 @@ dependencies {
     implementation libs.constraintlayout
     implementation libs.gson
     implementation libs.google.material
+    implementation libs.fontawesome.typeface
+    implementation libs.iconics.core
     testImplementation libs.junit
     androidTestImplementation libs.ext.junit
     androidTestImplementation libs.espresso.core
