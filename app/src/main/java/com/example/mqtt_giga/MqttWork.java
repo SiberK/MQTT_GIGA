@@ -1,5 +1,6 @@
 package com.example.mqtt_giga;
 
+import android.util.Log;
 import java.util.Stack;
 //---------------------------------------------------------------------------------
 public class MqttWork {
@@ -72,6 +73,45 @@ public class MqttWork {
         return stack.isEmpty(); // Если стек пуст — значит всё сбалансировано
     }
 //---------------------------------------------------------------------------------
-}
+//---------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------
+    public static class Message{
+        private static final String TAG = "MSG";
+        private enum TypeMsg {
+            OK,
+            ui,
+            update,
+            discover,
+            get_discover,
+            find,
+            isEmpty;
+        }
 
+        private String  topic   ;
+        private String  msg     ;
+        private TypeMsg type    ;
+
+        public Message(String tp,String ms){
+            topic = tp  ; msg = ms          ;
+            type = TypeMsg.isEmpty          ;
+
+            MyParserJson parser = new MyParserJson(msg)         ;
+            String value = parser.getValue("type")              ;
+            if(value != null && !value.isEmpty()){
+                try{ type = TypeMsg.valueOf(value)              ;
+                } catch(IllegalArgumentException e){ }
+            }
+            switch(type){
+                case OK:
+                    break   ;
+                case discover:
+                    break   ;
+            }
+            Log.i(TAG,"topic:" + topic + "  type:" + type)   ;
+        }
+    }
+//---------------------------------------------------------------------------------
+}
 

@@ -38,15 +38,63 @@ import accountmanagerlib.AccountUiManager;
 //---------------------------------------------------------------
 public class MainActivity extends AppCompatActivity{
     private static final String TAG = "MAIN";
+    private SettingsActivity settingsActivity   ;
+    private DeviceManager devManager            ;
+    private DeviceManager.Device device         ;
+
+    private String StrTopic     ;
+    private String StrMessage   ;
+    private String StrDevice    ;
+    //---------------------------------------------------------------
+    private BroadcastReceiver receiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, @NonNull Intent intent) {
+            messageParse(intent.getStringExtra("topic"),intent.getStringExtra("message"))   ;
+            addDevice(intent.getStringExtra("device"))      ;
+//            textView = findViewById(R.id.tvStat)          ; textView.setText(intent.getStringExtra("state"));
+//            textView = findViewById(R.id.tvAlarm)         ; textView.setText("Alarm: " + intent.getStringExtra("alarm"));
+//            if(intent.getStringExtra("user_uid") !=null) { tvUID.setText(intent.getStringExtra("user_uid"))  ;}
+        }
+    };
+    //---------------------------------------------------------------
+    private void messageParse(String topic, String message) {
+        if(topic != null && message != null){
+            MqttWork.Message msg = new MqttWork.Message(topic,message)  ;
+        }
+    }
+    //---------------------------------------------------------------
+    private void addDevice(String pfx) {
+        if(pfx != null && !pfx.isEmpty()){
+            device = devManager.addDevice(pfx)     ;// если pfx не новый, то вернёт null
+            if(device != null){
+            }
+            subscribeTo(pfx)                    ;
+            pingDevice(pfx)                     ;
+        }
+    }
+    //---------------------------------------------------------------
+    private void pingDevice(String pfx) {
+        Intent broadcastIntent = new Intent("TO_MQTT_SERVICE") ;// Отправка данных в активность
+        broadcastIntent.putExtra("ping",pfx)    ;
+        sendBroadcast(broadcastIntent)          ;}
+    //---------------------------------------------------------------
+    private void subscribeTo(String pfx) {
+        Intent broadcastIntent = new Intent("TO_MQTT_SERVICE") ;// Отправка данных в активность
+        broadcastIntent.putExtra("prefix",pfx)  ;
+        sendBroadcast(broadcastIntent)          ;}
     //---------------------------------------------------------------
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        super.onCreate(savedInstanceState)          ;
+        setContentView(R.layout.activity_main)      ;
 
         // Регистрация ресивера
-        IntentFilter filter = new IntentFilter();
-        filter.addAction("com.example.MY_ACTION"); // Уникальное действие
+        IntentFilter filter = new IntentFilter()    ;
+        filter.addAction("FROM_MQTT_SERVICE")       ;// Уникальное действие
+        filter.addAction("TO_MAIN")                 ;// Уникальное действие
+        registerReceiver(receiver, filter)          ;
+
+        devManager = new DeviceManager(this)        ;
     }
     //---------------------------------------------------------------
     @Override
@@ -76,7 +124,11 @@ public class MainActivity extends AppCompatActivity{
         // Обработка нажатий на пункты меню
         if(item.getItemId() == R.id.action_settings){
             Toast.makeText(this, "action_settings", Toast.LENGTH_SHORT).show();
-            startActivity(new Intent(this, SettingsActivity.class));
+
+            Intent intent = new Intent(this, SettingsActivity.class) ;
+//            intent.putExtra("key", "Значение для передачи");
+            startActivity(intent)   ;
+
             rzlt = true   ;
         }
         else if(item.getItemId() == R.id.action_search){

@@ -44,7 +44,7 @@ public class MyParserJson {
             try {
                 for (int ix = 0; ix < arrKeys.length; ix++) {
                     key = arrKeys[ix];
-                    Log.i(TAG, key);
+//                    Log.i(TAG, key);
                     if (current != null && current.isJsonObject() && current.get(key).isJsonObject()) {
                         current = current.getAsJsonObject(key);
                     } else break; // Путь не существует
@@ -61,31 +61,41 @@ public class MyParserJson {
         }
         return result       ; // Возвращаем конечное значение
     }
-
+//---------------------------------------------------------------------------------------
+    public String getValue(String key){
+        String str = "" ;
+        JsonElement elt = null  ;
+        if(root != null && root.isJsonObject()) {
+            elt = root.get(key)                 ;
+            if(elt != null)
+                str = elt.getAsString()         ;}
+        return str      ;}
+//---------------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------------
     /**
      * Метод для доступа к значениям по цепочке ключей.
      *
      * @param keys последовательность ключей для поиска значения
      * @return найденное значение или "", если путь не существует
      */
-    public String get(String... keys) {
-        String      result  = "", strKey = ""           ;
-        JsonObject  current = root                      ;
-
-        for (String key : keys) {
-            strKey = key    ; Log.i(TAG, key)           ;
-            if (current != null && current.isJsonObject() && current.get(key).isJsonObject()) {
-                current = current.getAsJsonObject(key)  ;
-            } else break                                ; // Путь не существует
-        }
-        try {
-            if (current != null && !strKey.isEmpty()) {
-                if (current.isJsonObject())
-                    result = current.toString()      ;
-                else result = current.get(strKey).getAsString();
-            }
-        } catch (UnsupportedOperationException | IllegalStateException e) { result = "" ;}
-
-        return result       ; // Возвращаем конечное значение
-    }
+//    public String get(String... keys) {
+//        String      result  = "", strKey = ""           ;
+//        JsonObject  current = root                      ;
+//
+//        for (String key : keys) {
+//            strKey = key    ; Log.i(TAG, key)           ;
+//            if (current != null && current.isJsonObject() && current.get(key).isJsonObject()) {
+//                current = current.getAsJsonObject(key)  ;
+//            } else break                                ; // Путь не существует
+//        }
+//        try {
+//            if (current != null && !strKey.isEmpty()) {
+//                if (current.isJsonObject())
+//                    result = current.toString()      ;
+//                else result = current.get(strKey).getAsString();
+//            }
+//        } catch (UnsupportedOperationException | IllegalStateException e) { result = "" ;}
+//
+//        return result       ; // Возвращаем конечное значение
+//    }
 }

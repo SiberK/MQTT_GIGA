@@ -1,25 +1,21 @@
 package com.example.mqtt_giga;
 
-import android.annotation.SuppressLint;
 import android.app.Notification;
-import android.app.NotificationManager;
 import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Build;
 import android.os.IBinder;
-import android.media.MediaPlayer;
 import android.util.Log;
 
-import androidx.core.app.NotificationCompat;
-
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import androidx.annotation.NonNull;
 
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
@@ -28,7 +24,10 @@ import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
+
 import java.io.UnsupportedEncodingException;
+import java.util.List;
+
 //---------------------------------------------------------------
 public class MQTTService extends Service implements MqttCallbackExtended {
     private static final String TAG = "MQTT_SERVICE";
@@ -37,13 +36,14 @@ public class MQTTService extends Service implements MqttCallbackExtended {
     private int     port;
     private String  login;
     private String  password;
-    private String  topicName;
+//    private String  topicName;
     private String  codeWord;
     private String  UserUID;
     private String  strSelRing;
     private MediaPlayer mediaPlayer;
     private String  BigStrMsg      ;
     private int     ChckCount       ;
+    private String StrPrefix        ;
 
 
     private MqttClient mqttClient;
@@ -66,22 +66,52 @@ public class MQTTService extends Service implements MqttCallbackExtended {
         port      = intent.getIntExtra("PORT", 1883)        ;
         login     = intent.getStringExtra("LOGIN")          ;
         password  = intent.getStringExtra("PASSWORD")       ;
-        topicName = intent.getStringExtra("TOPIC_NAME")     ;
+//        topicName = intent.getStringExtra("TOPIC_NAME")     ;
         codeWord  = intent.getStringExtra("CODE_WORD")      ;
         UserUID   = intent.getStringExtra("USER_UID")       ;
         strSelRing=intent.getStringExtra("SEL_RINGTONE")    ;
 
         try {
-            connectToBroker();
+            connectToBroker()   ;
+            List<DeviceManager.Device> deviceList = DeviceManager.getDeviceList() ;
+            for(DeviceManager.Device dev : deviceList){
+                subscribeToDevice(dev.prefix)               ;
+            }
         } catch (MqttException e) {
             Log.e(TAG, "Ошибка подключения к брокеру", e)   ;}
 
         return START_STICKY ;
     }
 //---------------------------------------------------------------
+    private BroadcastReceiver receiver = new BroadcastReceiver() {
+    @Override
+        public void onReceive(Context context, @NonNull Intent intent) {
+            if(intent.getAction().equals("TO_MQTT_SERVICE")) {
+//                subscribeToDevice(intent.getStringExtra("prefix"));
+                pingDevice(intent.getStringExtra("ping"));
+            }
+        }
+    };
+    //---------------------------------------------------------------
+    private void pingDevice(String pfx) {
+        if(pfx != null && !pfx.isEmpty()){
+            publishMessage(pfx,UserUID) ;
+        }
+    }
+    //---------------------------------------------------------------
+    private void subscribeToDevice(String pfx) {
+        if(pfx != null && !pfx.isEmpty())
+            subscribeToTopic(pfx + "/#");
+    }
+    //---------------------------------------------------------------
     @Override
     public void onCreate() {
         super.onCreate()            ;
+
+        // Регистрация ресивера
+        IntentFilter filter = new IntentFilter("TO_MQTT_SERVICE");// Уникальное действие
+        registerReceiver(receiver, filter);
+
         StartForeground()           ;
         BigStrMsg = new String()    ;
         ChckCount = 0               ;
@@ -92,9 +122,9 @@ public class MQTTService extends Service implements MqttCallbackExtended {
         super.onDestroy();
         disconnectFromBroker();
         if (mediaPlayer != null) {
-            mediaPlayer.release();
-            mediaPlayer = null;
-        }
+            mediaPlayer.release()   ;
+            mediaPlayer = null      ;}
+        unregisterReceiver(receiver);
     }
     //---------------------------------------------------------------
     private void StartForeground(){
@@ -142,13 +172,13 @@ public class MQTTService extends Service implements MqttCallbackExtended {
         Log.d(TAG, "Connected to broker");
 
         Intent broadcastIntent = new Intent()               ;
-        broadcastIntent.setAction("com.example.MY_ACTION")  ;
+        broadcastIntent.setAction("FROM_MQTT_SERVICE")  ;
         broadcastIntent.putExtra("state","MQTT broker: Connected to broker")          ;
         broadcastIntent.putExtra("user_uid",UserUID)        ;
         sendBroadcast(broadcastIntent)                      ;
 
         mqttClient.setCallback(this);
-        subscribeToTopic(topicName);
+ //       subscribeToTopic(topicName);
     }
     //---------------------------------------------------------------
     // Отключение от брокера
@@ -158,7 +188,7 @@ public class MQTTService extends Service implements MqttCallbackExtended {
                mqttClient.disconnect();
 
             Intent broadcastIntent = new Intent()               ;
-            broadcastIntent.setAction("com.example.MY_ACTION")  ;
+            broadcastIntent.setAction("FROM_MQTT_SERVICE")      ;
             broadcastIntent.putExtra("state","MQTT broker: Disconnect from broker")          ;
             sendBroadcast(broadcastIntent)                      ;
         } catch (MqttException e) {
@@ -175,20 +205,20 @@ public class MQTTService extends Service implements MqttCallbackExtended {
             Log.e(TAG, "Ошибка подписки на тему", e);
 
             Intent broadcastIntent = new Intent()               ;
-            broadcastIntent.setAction("com.example.MY_ACTION")  ;
+            broadcastIntent.setAction("FROM_MQTT_SERVICE")  ;
             broadcastIntent.putExtra("message","Ошибка подписки на тему "+e.toString())          ;
             sendBroadcast(broadcastIntent)                      ;
         }
     }
     //---------------------------------------------------------------
     // Отправка сообщения
-    private void publishMessage(String message) {
+    private void publishMessage(String topic,String message) {
         try {
             MqttMessage mqttMessage = new MqttMessage(message.getBytes("UTF-8"));
             mqttMessage.setRetained(false);
             mqttMessage.setQos(0);
             if(mqttClient.isConnected())
-                mqttClient.publish(topicName, mqttMessage);
+                mqttClient.publish(topic, mqttMessage);
         } catch (UnsupportedEncodingException | MqttException e) {
             Log.e(TAG, "Ошибка отправки сообщения", e);
         }
@@ -238,11 +268,10 @@ public class MQTTService extends Service implements MqttCallbackExtended {
 
         // Отправка данных в активность
         Intent broadcastIntent = new Intent()               ;
-        broadcastIntent.setAction("com.example.MY_ACTION")  ;
+        broadcastIntent.setAction("FROM_MQTT_SERVICE")      ;
         broadcastIntent.putExtra("topic"  ,topic)           ;
-        if(!StrMsg.isEmpty()) {
-            broadcastIntent.putExtra("message",LogStrMsg)   ;
-        }
+        if(!StrMsg.isEmpty())
+            broadcastIntent.putExtra("message",StrMsg)      ;
         if(StrAlarm != null && !StrAlarm.isEmpty())
             broadcastIntent.putExtra("alarm"  ,StrAlarm)    ;
         sendBroadcast(broadcastIntent)                      ;
@@ -255,10 +284,10 @@ public class MQTTService extends Service implements MqttCallbackExtended {
     //---------------------------------------------------------------
     @Override
     public void connectionLost(Throwable cause) {
-        Log.w(TAG, "Потеря соединения" + cause.getMessage(), cause);
+        Log.w(TAG, "Потеря соединения " + cause.getMessage(), cause);
 
         Intent broadcastIntent = new Intent()               ;
-        broadcastIntent.setAction("com.example.MY_ACTION")  ;
+        broadcastIntent.setAction("FROM_MQTT_SERVICE")  ;
         broadcastIntent.putExtra("state","MQTT broker: Потеря соединения" + cause.getMessage())          ;
         sendBroadcast(broadcastIntent)                      ;
     }
@@ -268,7 +297,7 @@ public class MQTTService extends Service implements MqttCallbackExtended {
         Log.d(TAG, "Connect Complete" + serverURI);
 
         Intent broadcastIntent = new Intent()               ;
-        broadcastIntent.setAction("com.example.MY_ACTION")  ;
+        broadcastIntent.setAction("FROM_MQTT_SERVICE")  ;
         broadcastIntent.putExtra("state","MQTT broker: Соединение завершено " + serverURI)          ;
         sendBroadcast(broadcastIntent)                      ;
     }

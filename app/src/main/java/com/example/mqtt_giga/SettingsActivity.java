@@ -31,34 +31,19 @@ import accountmanagerlib.AccountUiManager;
 
 public class SettingsActivity extends AppCompatActivity
         implements AccountUiManager.AccountActionListener  {
-//
-//    @Override
-//    protected void onCreate(Bundle savedInstanceState) {
-//        super.onCreate(savedInstanceState);
-//        EdgeToEdge.enable(this);
-//        setContentView(R.layout.activity_settings);
-//        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
-//            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-//            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
-//            return insets;
-//        });
-//    }
-//}
-//
-//public class MainActivity extends AppCompatActivity
-//        implements AccountUiManager.AccountActionListener {
-    private static final String TAG = "MAIN";
-    private TextView tvAccount   ;
-    private EditText etTopicName ;
+
+    private static final String TAG = "SETT";
+    private TextView    tvAccount   ;
+    private EditText    etTopicName ;
     private EditText    etCodeWord  ;
     private TextView    tvUID       ;
-    private Button btnStart    ;
+    private Button      btnStart    ;
     private Button      btnStop     ;
     private TextView    tvSound     ;
-    private Uri uriSound    ;
+    private Uri         uriSound    ;
     private String      strSound    ;
     private AccountUiManager accountUiManager;
-    private Account account     ;
+    private Account     account     ;
     private static final int RINGTONE_PICKER_REQUEST = 1;
     //---------------------------------------------------------------
     private BroadcastReceiver receiver = new BroadcastReceiver() {
@@ -76,11 +61,12 @@ public class SettingsActivity extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
+//        String value = getIntent().getStringExtra("key");
 
         // Регистрация ресивера
-        IntentFilter filter = new IntentFilter();
-        filter.addAction("com.example.MY_ACTION"); // Уникальное действие
-        registerReceiver(receiver, filter);
+        IntentFilter filter = new IntentFilter()    ;
+        filter.addAction("FROM_MQTT_SERVICE")       ; // Уникальное действие
+        registerReceiver(receiver, filter)          ;
 
         // Инициализация элементов интерфейса
         tvAccount   = findViewById(R.id.tvAccount)  ;
@@ -98,6 +84,15 @@ public class SettingsActivity extends AppCompatActivity
         findViewById(R.id.tvSound).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) { showSoundPicker()   ;}
+        });
+        findViewById(R.id.btnPrfx).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                etTopicName = findViewById(R.id.etTopicName);
+                if (etTopicName != null) {
+                    addDevice(etTopicName.getText().toString())    ;
+                }
+            }
         });
         //---------------------------------------------------------------
         // Обработчики кнопок запуска и остановки сервиса
@@ -117,6 +112,12 @@ public class SettingsActivity extends AppCompatActivity
         });
 
         loadSettings(); // Загрузка сохраненных настроек
+    }
+    //---------------------------------------------------------------
+    private void addDevice(String devPfx) {
+        Intent broadcastIntent = new Intent("TO_MAIN")      ;// Отправка данных в активность
+        broadcastIntent.putExtra("device",devPfx)           ;
+        sendBroadcast(broadcastIntent)                      ;
     }
     //---------------------------------------------------------------
     @Override
@@ -256,7 +257,8 @@ public class SettingsActivity extends AppCompatActivity
         // Обработка нажатий на пункты меню
         if(item.getItemId() == R.id.action_settings){
             Toast.makeText(this, "action_settings", Toast.LENGTH_SHORT).show();
-            startActivity(new Intent(this, MainActivity.class));
+//            startActivity(new Intent(this, MainActivity.class));
+            finish()    ;
             rzlt = true   ;
         }
         else if(item.getItemId() == R.id.action_search){
