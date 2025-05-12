@@ -30,10 +30,10 @@ public class AccountSwipeController extends ItemTouchHelper.Callback {
     @Override
     public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
         int position = viewHolder.getAdapterPosition();
-        Account account = uiManager.accountManager.getAccount(position);
+        AccManager.Account account = uiManager.accManager.getAccount(position);
 
         if (direction == ItemTouchHelper.RIGHT) {
-            uiManager.accountManager.removeAccount(position);
+            uiManager.accManager.removeAccount(position);
             adapter.notifyItemRemoved(position);
             Toast.makeText(uiManager.context, "Аккаунт удален", Toast.LENGTH_SHORT).show();
         } else if (direction == ItemTouchHelper.LEFT) {

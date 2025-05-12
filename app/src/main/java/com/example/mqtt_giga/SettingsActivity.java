@@ -25,14 +25,14 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.drawable.DrawableCompat;
 
-import accountmanagerlib.Account;
+import accountmanagerlib.AccManager.Account;
 import accountmanagerlib.AccountUiManager;
 //---------------------------------------------------------------
 
 public class SettingsActivity extends AppCompatActivity
         implements AccountUiManager.AccountActionListener  {
 
-    private static final String TAG = "SETT";
+    private static final String TAG = "M_SETT";
     private TextView    tvAccount   ;
     private EditText    etTopicName ;
     private EditText    etCodeWord  ;
@@ -42,11 +42,11 @@ public class SettingsActivity extends AppCompatActivity
     private TextView    tvSound     ;
     private Uri         uriSound    ;
     private String      strSound    ;
-    private AccountUiManager accountUiManager;
-    private Account     account     ;
-    private static final int RINGTONE_PICKER_REQUEST = 1;
+    private AccountUiManager accUiManager;
+    private Account     curAccount  ;
+    private static final int               RINGTONE_PICKER_REQUEST = 1;
     //---------------------------------------------------------------
-    private BroadcastReceiver receiver = new BroadcastReceiver() {
+    private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, @NonNull Intent intent) {
             TextView textView = findViewById(R.id.tvTopic)    ; textView.setText(intent.getStringExtra("topic"));
@@ -57,7 +57,8 @@ public class SettingsActivity extends AppCompatActivity
         }
     };
     //---------------------------------------------------------------
-    @Override
+    //@SuppressLint("UnspecifiedRegisterReceiverFlag")
+	@Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
@@ -65,8 +66,8 @@ public class SettingsActivity extends AppCompatActivity
 
         // Регистрация ресивера
         IntentFilter filter = new IntentFilter()    ;
-        filter.addAction("FROM_MQTT_SERVICE")       ; // Уникальное действие
-        registerReceiver(receiver, filter)          ;
+        filter.addAction("FROM_MQTT_SERVICE")       ;
+        registerReceiver(receiver, filter,RECEIVER_NOT_EXPORTED)          ;
 
         // Инициализация элементов интерфейса
         tvAccount   = findViewById(R.id.tvAccount)  ;
@@ -77,8 +78,8 @@ public class SettingsActivity extends AppCompatActivity
         btnStop     = findViewById(R.id.btnStop)    ;
         tvSound     = findViewById(R.id.tvSound)    ;
 
-        tvAccount.setOnClickListener(v->accountUiManager.showAccountsList());
-        accountUiManager = new AccountUiManager(this,this);
+        tvAccount.setOnClickListener(v->accUiManager.showAccountsList());
+        accUiManager = new AccountUiManager(this,this);
 
         // Обработчик кнопки выбора звука
         findViewById(R.id.tvSound).setOnClickListener(new View.OnClickListener() {
@@ -158,10 +159,10 @@ public class SettingsActivity extends AppCompatActivity
         if(uriSound != null)  strSound = uriSound.toString()    ;
         getSharedPreferences("MQTT_SETTINGS", MODE_PRIVATE)
                 .edit()
-                .putString("SRV_ADDRESS", account.getServer())
-                .putInt   ("PORT"       , Integer.parseInt(account.getPort()))
-                .putString("LOGIN"      , account.getLogin())
-                .putString("PASSWORD"   , account.getPassword())
+                .putString("SRV_ADDRESS", curAccount.getServer())
+                .putInt   ("PORT"       , Integer.parseInt(curAccount.getPort()))
+                .putString("LOGIN"      , curAccount.getLogin())
+                .putString("PASSWORD"   , curAccount.getPassword())
                 .putString("TOPIC_NAME" , etTopicName .getText().toString())
                 .putString("CODE_WORD"  , etCodeWord  .getText().toString())
                 .putString("USER_UID"   , tvUID       .getText().toString())
@@ -181,9 +182,10 @@ public class SettingsActivity extends AppCompatActivity
         String user_uid     = prefs.getString("USER_UID"    , "")       ;
         strSound = prefs.getString("SEL_RINGTONE", "")       ;
         uriSound = Uri.parse(strSound)   ;
+        String strPort = String.valueOf(port)   ;
 
-        account = new Account(serverAddress,String.valueOf(port),login,password)    ;
-        tvAccount.setText(account.toString());
+        curAccount = new Account(serverAddress, strPort, login, password)    ;
+        tvAccount.setText(curAccount.toString());
 
         etTopicName .setText(topicName) ;
         etCodeWord  .setText(codeWord)  ;
@@ -194,10 +196,10 @@ public class SettingsActivity extends AppCompatActivity
     // Запуск сервиса
     private void startMqttService() {
         Intent serviceIntent = new Intent(SettingsActivity.this, MQTTService.class);
-        serviceIntent.putExtra("SERVER_ADDRESS" , account.getServer());
-        serviceIntent.putExtra("PORT"           , Integer.parseInt(account.getPort()));
-        serviceIntent.putExtra("LOGIN"          , account.getLogin());
-        serviceIntent.putExtra("PASSWORD"       , account.getPassword());
+        serviceIntent.putExtra("SERVER_ADDRESS" , curAccount.getServer());
+        serviceIntent.putExtra("PORT"           , Integer.parseInt(curAccount.getPort()));
+        serviceIntent.putExtra("LOGIN"          , curAccount.getLogin());
+        serviceIntent.putExtra("PASSWORD"       , curAccount.getPassword());
         serviceIntent.putExtra("TOPIC_NAME"     , etTopicName.getText().toString());
         serviceIntent.putExtra("CODE_WORD"      , etCodeWord.getText().toString());
         serviceIntent.putExtra("USER_UID"       , tvUID.getText().toString());
@@ -216,8 +218,8 @@ public class SettingsActivity extends AppCompatActivity
     //---------------------------------------------------------------
     @Override
     public void onAccountSelected(Account _account) {
-        account = _account  ;
-        tvAccount.setText(account.toString());
+        curAccount = _account  ;
+        tvAccount.setText(curAccount.toString());
     }
     //---------------------------------------------------------------
     @Override
@@ -256,19 +258,18 @@ public class SettingsActivity extends AppCompatActivity
         boolean rzlt = super.onOptionsItemSelected(item);
         // Обработка нажатий на пункты меню
         if(item.getItemId() == R.id.action_settings){
-            Toast.makeText(this, "action_settings", Toast.LENGTH_SHORT).show();
-//            startActivity(new Intent(this, MainActivity.class));
+//            Toast.makeText(this, "action_settings", Toast.LENGTH_SHORT).show();
             finish()    ;
             rzlt = true   ;
         }
-        else if(item.getItemId() == R.id.action_search){
-            Toast.makeText(this, "action_search", Toast.LENGTH_SHORT).show();
-            rzlt = true   ;
-        }
-        else if(item.getItemId() == R.id.action_help){
-            Toast.makeText(this, "action_help", Toast.LENGTH_SHORT).show();
-            rzlt = true   ;
-        }
+//        else if(item.getItemId() == R.id.action_search){
+//            Toast.makeText(this, "action_search", Toast.LENGTH_SHORT).show();
+//            rzlt = true   ;
+//        }
+//        else if(item.getItemId() == R.id.action_help){
+//            Toast.makeText(this, "action_help", Toast.LENGTH_SHORT).show();
+//            rzlt = true   ;
+//        }
         return rzlt ;
     }
     //---------------------------------------------------------------

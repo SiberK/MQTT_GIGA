@@ -17,6 +17,8 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
+import com.example.mqtt_giga.MqttWork.Message;
+
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
 import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
 import org.eclipse.paho.client.mqttv3.MqttClient;
@@ -26,28 +28,30 @@ import org.eclipse.paho.client.mqttv3.MqttMessage;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
 //---------------------------------------------------------------
 public class MQTTService extends Service implements MqttCallbackExtended {
-    private static final String TAG = "MQTT_SERVICE";
-    private String  serverAddress;
-    private String  brokerUrl ;
-    private int     port;
-    private String  login;
-    private String  password;
-//    private String  topicName;
-    private String  codeWord;
-    private String  UserUID;
-    private String  strSelRing;
-    private MediaPlayer mediaPlayer;
-    private String  BigStrMsg      ;
+    private static final String TAG = "M_SRV";
+    private String  serverAddress   ;
+	private int     port            ;
+    private String  login           ;
+    private String  password        ;
+    private String  codeWord        ;
+    private String  UserUID         ;
+    private String  strSelRing      ;
+    private MediaPlayer mediaPlayer ;
+    private String  BigStrMsg       ;
     private int     ChckCount       ;
-    private String StrPrefix        ;
+    private MqttClient mqttClient   ;
+    private List<String> listPing   ;
+    private List<String> listPfx    ;
+    private Timer   timerPing       ;
 
-
-    private MqttClient mqttClient;
-//---------------------------------------------------------------
+    //---------------------------------------------------------------
     @Override
     public IBinder onBind(Intent intent) {
         return null;
@@ -70,62 +74,108 @@ public class MQTTService extends Service implements MqttCallbackExtended {
         codeWord  = intent.getStringExtra("CODE_WORD")      ;
         UserUID   = intent.getStringExtra("USER_UID")       ;
         strSelRing=intent.getStringExtra("SEL_RINGTONE")    ;
+        stopTimerPing()         ;
+        timerPing = new Timer() ;
+        fillListPing("fill_list")                           ;
+
+        DeviceAlarm.Work(null,null,null)                    ;
 
         try {
             connectToBroker()   ;
-            List<DeviceManager.Device> deviceList = DeviceManager.getDeviceList() ;
-            for(DeviceManager.Device dev : deviceList){
-                subscribeToDevice(dev.prefix)               ;
-            }
         } catch (MqttException e) {
             Log.e(TAG, "Ошибка подключения к брокеру", e)   ;}
-
+        if(mqttClient.isConnected()){
+            for(String pfx : listPfx) subscribeToDevice(pfx);
+            try{
+                timerPing.schedule(pingTask, 5000, 5000);
+            } catch(NullPointerException | IllegalStateException | IllegalArgumentException e){
+            }
+        }
         return START_STICKY ;
     }
+ //---------------------------------------------------------------
+    private void fillListPing(String cmd){
+        if(cmd == null || cmd.isEmpty()) return             ;
+
+        listPing  = new ArrayList<>()                       ;
+        listPfx   = new ArrayList<>()                       ;
+        for(DeviceManager.Device dev : DeviceManager.getDeviceList()){
+            listPfx.add(dev.getPrefix())                    ;
+            String strPing = Message.getPing(dev.getPrefix(),dev.getUID(),UserUID)   ;
+            if(!strPing.isEmpty()) listPing.add(strPing)   ;// соберём массив ping строк!
+        }
+    }
+    //---------------------------------------------------------------
+    private TimerTask pingTask = new TimerTask(){
+    @Override
+        public void run(){
+          if(mqttClient.isConnected() && listPing.size()>0){
+              for(String ping : listPing)
+                    publishMessage(ping,"")     ;
+          }
+        }
+    };
 //---------------------------------------------------------------
-    private BroadcastReceiver receiver = new BroadcastReceiver() {
+    private final BroadcastReceiver receiver = new BroadcastReceiver() {
     @Override
         public void onReceive(Context context, @NonNull Intent intent) {
             if(intent.getAction().equals("TO_MQTT_SERVICE")) {
 //                subscribeToDevice(intent.getStringExtra("prefix"));
                 pingDevice(intent.getStringExtra("ping"));
+                fillListPing(intent.getStringExtra("fill_list_ping"))  ;
+				workMqtt(intent.getStringExtra("prefix"),
+						 intent.getStringExtra("type_msg"),
+						 intent.getStringExtra("dev_uid"));
             }
         }
     };
     //---------------------------------------------------------------
     private void pingDevice(String pfx) {
-        if(pfx != null && !pfx.isEmpty()){
-            publishMessage(pfx,UserUID) ;
-        }
+        if(pfx != null && !pfx.isEmpty()) publishMessage(pfx,UserUID) ;
     }
     //---------------------------------------------------------------
     private void subscribeToDevice(String pfx) {
-        if(pfx != null && !pfx.isEmpty())
-            subscribeToTopic(pfx + "/#");
+        if(pfx != null && !pfx.isEmpty()){
+            subscribeToTopic(pfx + "/#")        ;
+        }
     }
-    //---------------------------------------------------------------
-    @Override
+//---------------------------------------------------------------
+private void workMqtt(String pfx,String typeMsg, String devUID){
+	if(!pfx.isEmpty() && !typeMsg.isEmpty()){
+	  Message msg = new Message(pfx, typeMsg, UserUID, devUID);
+	  if(!msg.getTopic().isEmpty()){
+		publishMessage(msg.getTopic(), msg.getMsg());
+	  }
+	}
+}
+//---------------------------------------------------------------
+//    @SuppressLint("UnspecifiedRegisterReceiverFlag")
+	@Override
     public void onCreate() {
         super.onCreate()            ;
 
         // Регистрация ресивера
-        IntentFilter filter = new IntentFilter("TO_MQTT_SERVICE");// Уникальное действие
-        registerReceiver(receiver, filter);
+        IntentFilter filter = new IntentFilter("TO_MQTT_SERVICE");
+        registerReceiver(receiver, filter,RECEIVER_NOT_EXPORTED);
 
         StartForeground()           ;
-        BigStrMsg = new String()    ;
+        BigStrMsg = ""              ;
         ChckCount = 0               ;
     }
     //---------------------------------------------------------------
     @Override
     public void onDestroy() {
-        super.onDestroy();
-        disconnectFromBroker();
+        super.onDestroy()           ;
+        stopTimerPing()             ;
+        disconnectFromBroker()      ;
         if (mediaPlayer != null) {
             mediaPlayer.release()   ;
             mediaPlayer = null      ;}
         unregisterReceiver(receiver);
     }
+    //---------------------------------------------------------------
+    private void stopTimerPing(){ if(timerPing != null){ timerPing.cancel()   ; timerPing = null  ;}}
+
     //---------------------------------------------------------------
     private void StartForeground(){
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -154,13 +204,16 @@ public class MQTTService extends Service implements MqttCallbackExtended {
     //---------------------------------------------------------------
     // Подключение к брокеру
     private void connectToBroker() throws MqttException {
-        MemoryPersistence persistence = new MemoryPersistence();
-        brokerUrl = "tcp://" + serverAddress + ":" + port      ;
+      MemoryPersistence persistence = new MemoryPersistence();
+	  String brokerUrl   = "tcp://" + serverAddress + ":" + port;
 
         if(UserUID.length() < 5)
             UserUID = MqttClient.generateClientId()             ;
 
-        mqttClient = new MqttClient(brokerUrl, UserUID, persistence);
+        if(mqttClient == null)
+           mqttClient = new MqttClient(brokerUrl, UserUID, persistence);
+
+        if(mqttClient.isConnected()) return ;
 
         MqttConnectOptions connOpts = new MqttConnectOptions();
         connOpts.setCleanSession(true);
@@ -184,7 +237,7 @@ public class MQTTService extends Service implements MqttCallbackExtended {
     // Отключение от брокера
     private void disconnectFromBroker() {
         try {
-//            if(mqttClient.isConnected())
+            if(mqttClient.isConnected())
                mqttClient.disconnect();
 
             Intent broadcastIntent = new Intent()               ;
@@ -206,7 +259,7 @@ public class MQTTService extends Service implements MqttCallbackExtended {
 
             Intent broadcastIntent = new Intent()               ;
             broadcastIntent.setAction("FROM_MQTT_SERVICE")  ;
-            broadcastIntent.putExtra("message","Ошибка подписки на тему "+e.toString())          ;
+            broadcastIntent.putExtra("message","Ошибка подписки на тему " + e)          ;
             sendBroadcast(broadcastIntent)                      ;
         }
     }
@@ -229,34 +282,43 @@ public class MQTTService extends Service implements MqttCallbackExtended {
     public void messageArrived(String topic, MqttMessage message) throws Exception {
         String StrMsg = message.toString()  ;
         String StrAlarm = ""                ;
+        String devPfx = ""                  ;
         boolean     isJSON = true           ;
+        boolean     flAlarm = false         ;
         // меняем теги (типа #1a, #69...) на ключевые слова, это надо для JSON разбора!
         StrMsg = new MqttWork().ReplaceTag(StrMsg)      ;
+        // проверим баланс скобок
         boolean CheckBracket = new MqttWork().checkBracketsBalance(StrMsg)  ;
         if(CheckBracket || ChckCount > 5){
-            BigStrMsg = ""      ; ChckCount = 0 ;}
-        if(!CheckBracket) {                          // если в сообщении нарушен баланс скобок, то
-            BigStrMsg += StrMsg;
-            ChckCount++;   // попытаемся "склеить" несколько сообщений в одно
+            BigStrMsg = ""          ; ChckCount = 0 ;}
+        if(!CheckBracket) {
+            BigStrMsg += StrMsg     ;// если в сообщении нарушен баланс скобок, то
+            ChckCount++             ;// попытаемся "склеить" несколько сообщений в одно
             CheckBracket = new MqttWork().checkBracketsBalance(BigStrMsg)  ;
             if(CheckBracket){
-                StrMsg = BigStrMsg  ;
+                StrMsg = BigStrMsg  ;// если удалось "склеить" несколько сообщений в одно
                 BigStrMsg = ""      ; ChckCount = 0 ;
             }
         }
-
+        // если CheckBracket == true
         String LogStrMsg =  String.format("(%d,%b) %s",StrMsg.length(),CheckBracket,StrMsg) ;
         Log.i(TAG,LogStrMsg)               ;
 
         try{
-            if(StrMsg != null/* && CheckBracket*/ && !StrMsg.isEmpty() && StrMsg.length() < 5000)
-                StrAlarm = new MyParserJson(StrMsg).GetKey(codeWord) ;
+            if(!StrMsg.isEmpty() && StrMsg.length() < 5000){
+                Message msg = new Message(topic,StrMsg)                         ;// определим тип сообщения
+                if(msg.getType() == Message.TypeMsg.update){
+                   devPfx   = msg.getDevPfx()                                       ;
+                   StrAlarm = new MyParserJson(StrMsg).GetKey("updates,"+codeWord)  ;
+                   flAlarm  = alarmWork(devPfx,codeWord,StrAlarm)                   ;
+                }
+            }
             else isJSON = false  ;
         }catch(IllegalArgumentException e){
             isJSON = false  ;
         }
 
-        if(isJSON && !StrAlarm.isEmpty() && !prevAlarm.equals(StrAlarm)){
+        if(flAlarm){
             if (!strSelRing.isEmpty() && !prevAlarm.isEmpty()) {
                 Uri soundUri = Uri.parse(strSelRing)        ;
                 if (mediaPlayer == null)
@@ -272,10 +334,16 @@ public class MQTTService extends Service implements MqttCallbackExtended {
         broadcastIntent.putExtra("topic"  ,topic)           ;
         if(!StrMsg.isEmpty())
             broadcastIntent.putExtra("message",StrMsg)      ;
-        if(StrAlarm != null && !StrAlarm.isEmpty())
+        if(!StrAlarm.isEmpty())
             broadcastIntent.putExtra("alarm"  ,StrAlarm)    ;
         sendBroadcast(broadcastIntent)                      ;
     }
+
+    //---------------------------------------------------------------
+    private boolean alarmWork(String devPfx, String codeWord, String strAlarm){
+        boolean fl = DeviceAlarm.Work(devPfx, codeWord,strAlarm)  ;
+        return  fl          ;}
+
     //---------------------------------------------------------------
     @Override
     public void deliveryComplete(IMqttDeliveryToken token) {
@@ -286,7 +354,14 @@ public class MQTTService extends Service implements MqttCallbackExtended {
     public void connectionLost(Throwable cause) {
         Log.w(TAG, "Потеря соединения " + cause.getMessage(), cause);
 
-        Intent broadcastIntent = new Intent()               ;
+	  try{
+          if(mqttClient.isConnected())
+		     mqttClient.disconnect()    ;
+	  } catch(MqttException e){
+          Log.e(TAG, "Ошибка отключения от брокера", e);
+	  }
+
+	  Intent broadcastIntent = new Intent()               ;
         broadcastIntent.setAction("FROM_MQTT_SERVICE")  ;
         broadcastIntent.putExtra("state","MQTT broker: Потеря соединения" + cause.getMessage())          ;
         sendBroadcast(broadcastIntent)                      ;
@@ -300,5 +375,32 @@ public class MQTTService extends Service implements MqttCallbackExtended {
         broadcastIntent.setAction("FROM_MQTT_SERVICE")  ;
         broadcastIntent.putExtra("state","MQTT broker: Соединение завершено " + serverURI)          ;
         sendBroadcast(broadcastIntent)                      ;
+    }
+
+    private static class DeviceAlarm{
+        private String pfx      ;
+        private String codeW    ;
+        private String alrm     ;
+
+        private static List<DeviceAlarm>    list    ;
+
+        public DeviceAlarm(String devPfx, String codeWord, String strAlarm){
+            pfx = devPfx    ; codeW = codeWord  ; alrm = strAlarm   ;}
+
+        public static boolean Work(String devPfx, String codeWord, String strAlarm){
+          boolean fl = false, isNew = true    ;
+          if(devPfx == null || codeWord == null || strAlarm == null){
+              list = new ArrayList<>()   ; return false ;}
+
+          for(DeviceAlarm da:list){
+                if(da.pfx.equals(devPfx) && da.codeW.equals(codeWord)){
+                    isNew = false                       ;// такой dewPfx,codeWord уже есть!
+                    fl = !da.alrm.equals(strAlarm)      ;// strAlarm не совпадает!!! ТРЕВоГА
+                    if(fl) da.alrm = strAlarm           ;
+                    break   ;
+                }
+          }
+          if(isNew) list.add(new DeviceAlarm(devPfx,codeWord,strAlarm)) ;
+          return fl   ;}
     }
 }

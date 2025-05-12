@@ -4,24 +4,24 @@ import android.content.Context;
 import android.util.Log;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.Serializable;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-
+//-----------------------------------------------------------
 public class DeviceManager {
-    private final String TAG = "DEV_MNGR"  ;
-    private static final String FILE_NAME = "devices.dat";
+    private final String TAG = "MNGR_DEV"  ;
+    private static final String FILE_NAME = "devices";
     private static List<Device> deviceList  ;
     private Context context;
 
@@ -70,84 +70,71 @@ public class DeviceManager {
 
         return null ;}
 //-----------------------------------------------------------
-private void saveDevListToJson() {
-    File   file = new File(context.getFilesDir(), "devices.json");
-    Gson   gson = new Gson();
-    String json = gson.toJson(deviceList);  // Преобразуем List<Device> в JSON-строку
+    public void saveDevListToJson() {
+        if(deviceList == null) return   ;
 
-    try (FileWriter writer = new FileWriter(file)) {
-        writer.write(json);  // Записываем JSON в файл
-    } catch (IOException e) {
-        Log.e("JSON", "Ошибка сохранения: " + e.getMessage());
+        File   file = new File(context.getFilesDir(), FILE_NAME +".json");
+        File tempFile = new File(context.getFilesDir(), FILE_NAME + ".tmp");// Сначала пишем во временный файл
+
+        try (OutputStreamWriter writer = new OutputStreamWriter(
+            new FileOutputStream(tempFile), StandardCharsets.UTF_8)) {
+            new Gson().toJson(deviceList, writer)                       ;// Сериализация и запись
+            writer.close()                                              ;// Закрываем writer перед переименованием
+            if(tempFile.renameTo(file)) Log.i(TAG,"Save DevList OK")    ;
+            else Log.w(TAG,"Не удалось переименовать временный файл")   ;
+        } catch (IOException | JsonIOException e) {
+            Log.e(TAG, "Ошибка сохранения DevList: " + e.getMessage())  ;
+        }finally{
+            if (tempFile.exists() && !tempFile.delete()) {
+                Log.w(TAG, "Не удалось удалить временный файл")         ;}
+        }
     }
-}
+//----------------------------------------------------------------------------------------
     private void loadDevListFromJson() {
-        File file = new File(context.getFilesDir(), "devices.json");
-        if (!file.exists()) {
-            deviceList = new ArrayList<>();  // Файла нет — создаём пустой список
-            return;
+        deviceList = null   ;
+        File file = new File(context.getFilesDir(), FILE_NAME +".json");
+        if(file.exists() && file.length() != 0){
+            try(InputStreamReader reader = new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8)){
+                Gson gson = new Gson()                                  ;
+                Type type = new TypeToken<List<Device>>(){}.getType()   ;// Указываем тип для корректной десериализации: List<Device>
+                deviceList = gson.fromJson(reader, type)                ;  // Читаем JSON в List<Device>
+            } catch(IOException | JsonSyntaxException | JsonIOException e){
+                Log.e("JSON", "Ошибка загрузки: " + e.getMessage())     ;}
+            Log.i(TAG,"Load DevList OK")    ;
         }
-
-        try (FileReader reader = new FileReader(file)) {
-            Gson gson = new Gson();
-            // Указываем тип для корректной десериализации: List<Device>
-            Type type = new TypeToken<List<Device>>() {}.getType();
-            deviceList = gson.fromJson(reader, type);  // Читаем JSON в List<Device>
-
-            if (deviceList == null) {
-                deviceList = new ArrayList<>();  // Если файл пустой
-            }
-        } catch (IOException e) {
-            Log.e("JSON", "Ошибка загрузки: " + e.getMessage());
-            deviceList = new ArrayList<>();
+        if (deviceList == null) deviceList = new ArrayList<>()          ;  // Если файл пустой
+        for(Device dvc : deviceList){
+            if(dvc.uid == null) dvc.uid = ""    ;
         }
     }
-    private void saveDevList(){
-        Log.d("Serialization", "Saving list: " + deviceList);
-        for (Device device : deviceList) {
-            if (device == null) {
-                Log.e("Serialization", "Found null Device in list!");
-            }
+//----------------------------------------------------------------------------------------
+    public int setDevName(String devPfx, String devName){
+        int id = -1 ;
+        Device dvc = findByPfx(devPfx)  ;
+        if(dvc != null && !devName.isEmpty()){
+            dvc.name = devName  ;
+            id = dvc.btnId      ;// чтоб найти кнопку на форме
         }
-
-        FileOutputStream fos    ;
-        ObjectOutputStream oos  ;
-        File tempFile = new File(context.getFilesDir(), FILE_NAME + ".tmp");
-        File finalFile = new File(context.getFilesDir(), FILE_NAME);
-        try {
-            fos = new FileOutputStream(tempFile);
-            oos = new ObjectOutputStream(fos);
-            oos.writeObject(new ArrayList<>(deviceList));
-            oos.close();
-            fos.close();
-            tempFile.renameTo(finalFile); // Атомарная замена
-        } catch (Exception e) {
-            Log.e("Serialization", "Error saving device list", e);
+        return id   ;}
+//----------------------------------------------------------------------------------------
+    public Device findByPfx(String devPfx){
+        Device dvc = null   ;
+        if(!devPfx.isEmpty()){
+            for(Device devIx : deviceList){
+                if(devIx.prefix.equals(devPfx)){
+                    dvc = devIx   ; break   ;}}
         }
-    }
-//-----------------------------------------------------------
-    private void loadDevList() {
-        FileInputStream     fis     ;
-        ObjectInputStream   ois     ;
-        try {
-            fis = new FileInputStream(new File(context.getFilesDir(), FILE_NAME));
-            ois = new ObjectInputStream(fis)  ;
-            deviceList = (List<Device>) ois.readObject()        ;
-            ois.close()         ;
-            fis.close()         ;
-        } catch (Exception e) {
-            Log.i(TAG,"exeptionnn: ",e);
-//            e.printStackTrace();
-        }
-    }
-//===========================================================
-    public class Device implements Serializable{
+        return dvc  ;}
+    //===========================================================
+    public class Device {
         private static final long serialVersionUID = 1L;  // Рекомендуется
 
-        public String   ix      ;
-        public String   name    ;
-        public String   prefix  ;
-        public String   version ;
+        private String   ix      ;
+        private String   name    ;
+        private String   prefix  ;
+        private String   uid     ;
+        private String   version ;
+        private int      btnId   ;
 //-----------------------------------------------------------
         private boolean noValid(){
             return name.isEmpty() || prefix.isEmpty()         ;}
@@ -156,19 +143,26 @@ private void saveDevListToJson() {
             return !name.isEmpty() && !prefix.isEmpty()       ;}
     //-----------------------------------------------------------
         public Device(String _name,String prfx,String ver){
-            name = _name    ; prefix = prfx ; version = ver ; ix = ""   ;}
+            name = _name    ; prefix = prfx ; version = ver ;
+            ix = ""         ; uid = ""      ; btnId = 0   ;}
     //-----------------------------------------------------------
         public String getIx()             { return ix     ;}
         public void setIx(String val)     { ix = val      ;}
 
+        public String getUID()             { return uid   ;}
+        public boolean setUID(String val) { boolean fl = !val.equals(uid) ; uid = val    ; return fl  ;}
+
         public String getName()           {return  name   ;}
-        public void setName(String val)   { name = val    ;}
+        public boolean setName(String val){ boolean fl = !val.equals(name) ; name = val    ; return fl  ;}
 
-        public String getPrefix()         {return prefix  ;}
-        public void setPrefix(String val) { prefix = val  ;}
+        public String getPrefix()         {return prefix    ;}
+        public void setPrefix(String val) { prefix = val    ;}
 
-        public String getVersion()        {return version ;}
-        public void setVersion(String val){version = val  ;}
+        public String getVersion()        {return version   ;}
+        public void setVersion(String val){version = val    ;}
+
+        public void setBtnId(int val)     { btnId = val     ;}
+        public int  getBtnId()            { return btnId    ;}
     }
 //===========================================================
 }

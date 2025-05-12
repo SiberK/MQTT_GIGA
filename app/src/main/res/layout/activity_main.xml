@@ -5,4 +5,9 @@
     android:orientation="vertical"
     android:padding="16dp">
 
+	<TableLayout
+		android:id="@+id/cont"
+		android:layout_width="match_parent"
+		android:layout_height="match_parent">
+	</TableLayout>
 </LinearLayout>

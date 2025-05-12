@@ -8,8 +8,8 @@ android {
 
     defaultConfig {
         applicationId "com.example.mqtt_giga"
-        minSdk 24
-        targetSdk 33
+        minSdk 27
+        targetSdk 35
         versionCode 1
         versionName "1.0"
 
@@ -35,15 +35,13 @@ android {
 }
 
 dependencies {
-
     implementation libs.appcompat
-    implementation libs.material
+    implementation(libs.material)
     implementation libs.org.eclipse.paho.android.service
     implementation libs.org.eclipse.paho.client.mqttv3
     implementation libs.activity
     implementation libs.constraintlayout
     implementation libs.gson
-    implementation libs.google.material
     implementation libs.fontawesome.typeface
     implementation libs.iconics.core
     testImplementation libs.junit
