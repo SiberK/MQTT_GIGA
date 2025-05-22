@@ -6,7 +6,7 @@ import java.util.Stack;
 //---------------------------------------------------------------------------------
 public class MqttWork {
   private static final String TAG = "MQTT_WORK";
-  private String HubTag[] = {
+  private static final String HubTag[] = {
 		  "api_v","id","client","type","update","updates","get","last","crc32","discover","name",
 		  "prefix","icon","PIN","version","max_upl","http_t","ota_t","ws_port","modules","total",
 		  "used","code","OK",
@@ -21,8 +21,12 @@ public class MqttWork {
 		  "text_f","label","title","dpad","joy","flags","tabs","switch_t","switch_i","button",
 		  "color","select","spinner","slider","datetime","date","time","confirm","prompt","area",
 		  "pass","input","hook","row","col","space","platform"};
+  private static String BigStrMsg 	= ""	;
+  private static int ChckCount 		= 0		;
+  public  static boolean CheckBracket = false;
+
   //---------------------------------------------------------------------------------
-  public String   ReplaceTag(String Str){
+  public static String   ReplaceTag(String Str){
 	int SizeArr = HubTag.length     ;
 	String  strT, strR              ;
 	for(int ix=SizeArr-1;ix>=0;ix--){
@@ -34,7 +38,7 @@ public class MqttWork {
 	return Str   ;}
   //---------------------------------------------------------------------------------
   // Этот метод написал GIGAchat  !!!!
-  public boolean checkBracketsBalance(String input) {
+  public static boolean checkBracketsBalance(String input) {
 	if (input == null || input.isEmpty())
 	  return true;
 
@@ -73,11 +77,26 @@ public class MqttWork {
 
 	return stack.isEmpty(); // Если стек пуст — значит всё сбалансировано
   }
-//---------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------
-//---------------------------------------------------------------------------------
+  //---------------------------------------------------------------------------------
+  public static String prework(String strMsg){
+	// меняем теги (типа #1a, #69...) на ключевые слова, это надо для JSON разбора!
+	strMsg = MqttWork.ReplaceTag(strMsg)      ;
+	// проверим баланс скобок
+	CheckBracket = MqttWork.checkBracketsBalance(strMsg)  ;
+	if(CheckBracket || ChckCount > 5){
+	  BigStrMsg = ""          ; ChckCount = 0 ;}
+	if(!CheckBracket) {
+	  BigStrMsg += strMsg     ;// если в сообщении нарушен баланс скобок, то
+	  ChckCount++             ;// попытаемся "склеить" несколько сообщений в одно
+	  CheckBracket = MqttWork.checkBracketsBalance(BigStrMsg)  ;
+	  if(CheckBracket){
+		strMsg = BigStrMsg  ;// если удалось "склеить" несколько сообщений в одно
+		BigStrMsg = ""      ; ChckCount = 0 ;
+	  }
+	}
+	return strMsg	;
+  }
+  //---------------------------------------------------------------------------------
   public static class Message{
   private static final String TAG = "MSG";
   private String  topic		;
@@ -100,15 +119,18 @@ public class MqttWork {
 
   public static String getPing(String pfx,String devUid,String userUid){
 	String ping = ""	;// topic: Boil_9140/a470ab51/d760bb65/ping
-	userUid = String.format("%08x", userUid.hashCode())				;
-	if(!pfx.isEmpty() && !userUid.isEmpty())// && !devUid.isEmpty())
+	if(!pfx.isEmpty() && !userUid.isEmpty() && !devUid.isEmpty())
 	  ping = String.format("%s/%s/%s/ping",pfx, devUid, userUid)	;
 	return ping	;}
 
   //-------------------------------------------------------------------
+  public static String getFind(String prefix, String userUID){
+	String find = ""	;// topic: Boil_9140 	msg: d760bb65
+
+	return find			;}
+
+  //-------------------------------------------------------------------
   public void set(String pfx, String userUid, String devUid){
-	// !!! сделал так потому-что MqttClient.generateClientId() генерирует очень длинный ClientId !!!!
-	userUid = String.format("%08x", userUid.hashCode());
 	msg     = ""	;topic = ""	;
 	switch(type){
 	  case find:	if(!pfx.isEmpty() && !userUid.isEmpty()){
@@ -163,14 +185,18 @@ public class MqttWork {
   }
 
   //---------------------------------------------------------------------------------
-  public String getTopic()	{ return topic		;}
-  public String getMsg()	{ return msg		;}
-  public String getDevPfx()	{ return devPfx		;}
-  public String getDevName(){ return devName	;}
-  public String getDstUid()	{ return dstUid		;}
-  public String getSrcUid()	{ return srcUid		;}
+  public String getTopic()	{ return topic  == null ? "" : topic	;}
+  public String getMsg()	{ return msg    == null ? "" : msg		;}
+  public String getDevPfx()	{ return devPfx == null ? "" : devPfx	;}
+  public String getDevName(){ return devName== null ? "" : devName	;}
+  public String getDstUid()	{ return dstUid	== null ? "" : dstUid	;}
+  public String getSrcUid()	{ return srcUid	== null ? "" : srcUid	;}
   public TypeMsg getType()	{ return type		;}
-  //---------------------------------------------------------------------------------
+
+	public String report(){
+		return String.format("%s:%s (%d bytes)",getDevPfx(),getType(),getMsg().length())	;}
+
+	//---------------------------------------------------------------------------------
   public enum TypeMsg{
 	// ответ на ping
 	OK,                // topic: Boil_9140/hub/d760bb65/a470ab51  	msg: {"id":"a470ab51","type":"OK"}

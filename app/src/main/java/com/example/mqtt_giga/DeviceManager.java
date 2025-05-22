@@ -41,14 +41,21 @@ public class DeviceManager {
         }
         return rzlt                 ;}
 //-----------------------------------------------------------
-    public Device addDevice(String prfx){
-        Device dev = null                   ;
-        if(prfx != null && findByPrefix(prfx) == null) {
-            dev = new Device("",prfx,"")    ;
-            deviceList.add(dev)             ;
-            saveDevListToJson()             ;
-        }
-        return dev                          ;}
+public Device addDevice(String pfx){
+    Device dev = null                   ;
+    if(pfx != null && !pfx.isEmpty() && findByPrefix(pfx) == null) {
+        dev = new Device("",pfx,"")    ;
+        deviceList.add(dev)             ;
+        saveDevListToJson()             ;
+    }
+    return dev                          ;}
+    //-----------------------------------------------------------
+    public void removeDevice(String prfx){
+        Device dev = findByPrefix(prfx) ;
+        if(dev != null){
+            deviceList.remove(dev)      ;
+            saveDevListToJson()         ;}
+    }
     //-----------------------------------------------------------
     public void removeDevice(int position){
         if(position >= 0 && position < deviceList.size()){
@@ -64,9 +71,10 @@ public class DeviceManager {
 //-----------------------------------------------------------
 //-----------------------------------------------------------
 //-----------------------------------------------------------
-    private Device findByPrefix(String val){
+    private Device findByPrefix(String pfx){
+        if(pfx == null || pfx.isEmpty()) return null    ;
         for(Device dev : deviceList)
-          if(dev.prefix.equals(val)) return dev ;
+          if(dev.prefix.equals(pfx)) return dev ;
 
         return null ;}
 //-----------------------------------------------------------

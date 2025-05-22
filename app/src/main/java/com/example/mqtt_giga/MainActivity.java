@@ -1,32 +1,45 @@
 package com.example.mqtt_giga;
 
+import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.res.ColorStateList;
+import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageButton;
+import android.widget.ImageView;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.drawable.DrawableCompat;
 
 import com.example.mqtt_giga.DeviceManager.Device;
 import com.example.mqtt_giga.MqttWork.Message;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.List;
+
+import static com.google.android.material.internal.ViewUtils.dpToPx;
 
 //---------------------------------------------------------------
 public class MainActivity extends AppCompatActivity{
@@ -71,90 +84,163 @@ public class MainActivity extends AppCompatActivity{
 
 			if(flRe){		// была дополнена информация по устройству?
 			  devManager.saveDevListToJson()					;
-			  Intent broadcastIntent = new Intent("TO_MQTT_SERVICE") 		;// Отправка данных в активность
-			  broadcastIntent.putExtra("fill_list_ping","fill_list_ping")   ;
-			  sendBroadcast(broadcastIntent)          			;}
+				fillListPing()	;}
         }
     }
-    //---------------------------------------------------------------
+  //---------------------------------------------------------------
+  private void fillListPing(){
+	Intent broadcastIntent = new Intent("TO_MQTT_SERVICE") 		;// Отправка данных в активность
+	broadcastIntent.putExtra("fill_list_ping","fill_list_ping")   ;
+	sendBroadcast(broadcastIntent)          			;
+  }
+  //---------------------------------------------------------------
     private void addDevice(String pfx) {
-        if(pfx != null && !pfx.isEmpty()){
-            curDevice = devManager.addDevice(pfx)     ;// если pfx не новый, то вернёт null
-            if(curDevice != null){
-            }
-            subscribeTo(pfx)                    ;
-            pingDevice(pfx)                     ;
-        }
+	  curDevice = devManager.addDevice(pfx)   ;// если pfx не новый, то вернёт null
+	  if(curDevice != null){
+		createDeviceMatButtons()				;
+		subscribeTo(pfx)                    	;
+		findDevice(pfx)                     	;
+		fillListPing()							;}
     }
-    //---------------------------------------------------------------
-    private void pingDevice(String pfx) {
+  //---------------------------------------------------------------
+	private void removeDevice(String pfx){
+		devManager.removeDevice(pfx)    		;
+	  	createDeviceMatButtons()				;
+		fillListPing()							;}
+  //---------------------------------------------------------------
+    private void findDevice(String pfx) {
         Intent broadcastIntent = new Intent("TO_MQTT_SERVICE") ;// Отправка данных в активность
-        broadcastIntent.putExtra("ping",pfx)    ;
+        broadcastIntent.putExtra("find",pfx)    ;
         sendBroadcast(broadcastIntent)          ;}
     //---------------------------------------------------------------
     private void subscribeTo(String pfx) {
         Intent broadcastIntent = new Intent("TO_MQTT_SERVICE") ;// Отправка данных в активность
         broadcastIntent.putExtra("prefix",pfx)  ;
         sendBroadcast(broadcastIntent)          ;}
-    //---------------------------------------------------------------
-	private void createDeviceButtons(List<Device> devices) {
-	  Button	btn						;
-	  TableRow	row = null				;
-	  Device device		;
-	  String	ttl						;
-	  TableLayout cont = findViewById(R.id.cont)				;
-
-	  if(cont == null || devices == null || devices.size() == 0){
-		Log.e(TAG, "GridLayout или список устройств равен null");
-		return	;}
-	  cont.removeAllViews()										; // Очистка предыдущих кнопок
-
-	  TableRow.LayoutParams params = new TableRow.LayoutParams();
-	  params.width  = TableRow.LayoutParams.MATCH_PARENT		;
-	  params.height = TableRow.LayoutParams.WRAP_CONTENT		;
-	  params.weight = 1		;
-	  params.setMargins(4, 4, 4, 4);
-
-	  for (int i = 0; i < devices.size(); i++) {
-		if(i % 2 == 0){ row = new TableRow(this)				;
-		  				cont.addView(row)						;}
-		btn = new Button(this)									;
-		device = devices.get(i)		; if(device == null) break	;
-		ttl = device.getName()									;
-		if(ttl.isEmpty()) ttl = device.getPrefix()				;
-		btn.setText(ttl)										;
-		btn.setHint(device.getPrefix())							;
-		int btnId = View.generateViewId()						;
-		device.setBtnId(btnId)									;
-		btn.setId(btnId)										;
-		// Настройка внешнего вида кнопки
-		btn.setBackgroundResource(R.drawable.btn_device_bg)		;
-		btn.setTextColor(ContextCompat.getColor(this, R.color.white));
-		btn.setTextSize(20)					;
-		btn.setAllCaps(false)				;
-		// Обработчик нажатия
-		Device finalDevice = device;
-		btn.setOnClickListener(v -> onDeviceClicked(finalDevice))	;
-
-		row.addView(btn,params)				;
-	  }
-	  if(devices.size() % 2 != 0 && row != null){
-		TextView txt = new TextView(this)	;
-		row.addView(txt,params)				;
-	  }
-	}
-  private void onDeviceClicked(Device device) {
-	// Обработка нажатия на устройство
-	Toast.makeText(this, "Выбрано: " + device.getPrefix(), Toast.LENGTH_SHORT).show();
-
-	Intent broadcastIntent = new Intent("TO_MQTT_SERVICE") 	;// Отправка данных в активность
-	broadcastIntent.putExtra("prefix",device.getPrefix())   ;
-	broadcastIntent.putExtra("type_msg","find")    			;
-	broadcastIntent.putExtra("dev_uid" ,device.getUID())   ;
-	sendBroadcast(broadcastIntent)          ;
-  }
 //---------------------------------------------------------------
-//  @SuppressLint("UnspecifiedRegisterReceiverFlag")
+  private void createDeviceMatButtons() {
+	MaterialButton 	btn			;
+	TableRow       	row = null	;
+	Device 			device		;
+	String			ttl			;
+	TableLayout cont = findViewById(R.id.cont)				;
+
+	List<Device> devices = DeviceManager.getDeviceList()	;
+	if(cont == null || devices == null || devices.size() == 0){
+	  Log.e(TAG, "GridLayout или список устройств равен null");
+	  return	;}
+	cont.removeAllViews()										; // Очистка предыдущих кнопок
+
+	TableRow.LayoutParams params = new TableRow.LayoutParams(TableRow.LayoutParams.MATCH_PARENT,
+															 TableRow.LayoutParams.WRAP_CONTENT,1.0f);
+	params.setMargins(8, 8, 8, 8);
+
+	for (int i = 0; i < devices.size(); i++) {
+	  if(i % 2 == 0){ row = new TableRow(this)				;
+		cont.addView(row)						;}
+
+	  device = devices.get(i)	; if(device == null) break	;
+
+	  ttl = device.getName()								;
+	  if(ttl.isEmpty()) ttl = device.getPrefix()			;
+	  int btnId = View.generateViewId()						;
+	  device.setBtnId(btnId)								;
+
+	  btn = createMatButton(ttl,btnId,device)				;
+	  if(btn != null) row.addView(btn,params)				;
+	}
+	if(devices.size() % 2 != 0 && row != null){
+	  View spacer = new View(this)			;
+	  row.addView(spacer,params)			;
+	}
+  }
+  //----------------------------------------------------------------------------
+  private MaterialButton createMatButton(String ttl, int btnId, Device device){
+	MaterialButton btn = new MaterialButton(this,null, R.style.DeviceButtonStyle);
+	btn.setText(ttl)				;
+	btn.setHint(device.getPrefix())	;
+	btn.setId(btnId)				;
+	btn.setTextSize(26)				;
+	btn.setAllCaps(false)			;
+	btn.setPadding(8,8,8,8)			;
+
+	// Настройка внешнего вида кнопки
+	btn.setTextColor(ContextCompat.getColorStateList(this, R.color.black));
+	btn.setBackgroundResource(R.drawable.btn_device_bg)	;
+	btn.setBackgroundTintList(null)						; // очищаем стандартную заливку
+
+	// Добавляем иконку ВНУТРИ кнопки
+	btn.setIcon(ContextCompat.getDrawable(this, R.drawable.gear));
+	btn.setIconGravity(MaterialButton.ICON_GRAVITY_END)	;
+	btn.setIconSize(46)	; // размер в пикселях
+	btn.setChecked(true);
+	btn.setIconPadding(4)	; // отступ между текстом и иконкой
+
+	// Обработчик нажатия
+	btn.setOnClickListener(v -> onDeviceClicked(device))	;
+	btn.setIconTint(ColorStateList.valueOf(ContextCompat.getColor(this, R.color.purple_200)));
+	// Отдельный обработчик только для иконки
+	btn.setOnTouchListener(new View.OnTouchListener(){
+	  @Override
+	  public boolean onTouch(View v, MotionEvent event){
+		if(event.getAction() == MotionEvent.ACTION_DOWN){
+		  Rect  bounds   = ((MaterialButton) v).getIcon().getBounds();
+		  float iconLeft = v.getWidth() - v.getPaddingRight() - bounds.width();
+
+		  if(event.getX() > iconLeft){// Клик по иконке ?
+			MainActivity.this.showAlertDialog(device);
+			return true			;}}
+		return false			;}});
+
+  	return btn	;}
+  //----------------------------------------------------------------------------
+  // AlertDialog
+  private void showAlertDialog(Device device) {
+//	Toast.makeText(this, "Информация: " + device.getName(), Toast.LENGTH_SHORT).show();
+	// Создаем кастомный макет для диалога
+	View dialogView = LayoutInflater.from(this)
+									.inflate(R.layout.dialog_device_actions, null);
+
+	// Находим элементы управления
+	ImageView ivDel   = dialogView.findViewById(R.id.ivDelete)	;
+	ImageView ivCheck = dialogView.findViewById(R.id.ivCheck)	;
+	TextView  tvDev   = dialogView.findViewById(R.id.tvDevPfx)	;
+	if(tvDev != null && device != null)
+	  tvDev.setText(device.getPrefix())			;
+
+	// Создаем и настраиваем диалог
+	AlertDialog dialog = new MaterialAlertDialogBuilder(this)
+//			.setTitle("Действия с устройством")
+			.setView(dialogView)
+//			.setNegativeButton("Отмена", null)
+			.create();
+
+	// Обработчики кликов по иконкам
+	if(ivDel != null)
+	  ivDel.setOnClickListener(v -> {
+	  removeDevice(device.getPrefix())	;
+	  dialog.dismiss();
+	});
+	if(ivCheck != null)
+	  ivCheck.setOnClickListener(v -> {
+//	  toggleDeviceState(device);
+	  dialog.dismiss();
+	});
+
+	dialog.show();}
+//----------------------------------------------------------------------------
+private void onDeviceClicked(Device device) {
+  // Обработка нажатия на устройство
+  Toast.makeText(this, "Выбрано: " + device.getPrefix(), Toast.LENGTH_SHORT).show();
+
+  Intent broadcastIntent = new Intent("TO_MQTT_SERVICE") 	;// Отправка данных в активность
+  broadcastIntent.putExtra("prefix",device.getPrefix())		;
+  broadcastIntent.putExtra("type_msg","find")    			;
+  broadcastIntent.putExtra("dev_uid" ,device.getUID())   	;
+  sendBroadcast(broadcastIntent)          					;
+}
+  //---------------------------------------------------------------
+  @SuppressLint("UnspecifiedRegisterReceiverFlag")
   @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState)          ;
@@ -164,10 +250,14 @@ public class MainActivity extends AppCompatActivity{
         IntentFilter filter = new IntentFilter()    ;
         filter.addAction("FROM_MQTT_SERVICE")       ;// Уникальное действие
         filter.addAction("TO_MAIN")                 ;// Уникальное действие
-        registerReceiver(receiver, filter,RECEIVER_NOT_EXPORTED)          ;
+
+	// Регистрация ресивера
+	if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU)
+	  registerReceiver(receiver, filter)		                ;
+	else registerReceiver(receiver, filter,RECEIVER_NOT_EXPORTED);
 
         devManager = new DeviceManager(this)        ;
-		createDeviceButtons(DeviceManager.getDeviceList())				;
+		createDeviceMatButtons()					;
   }
     //---------------------------------------------------------------
     @Override
