@@ -1,10 +1,25 @@
 package com.example.mqtt_giga;
 
+import android.content.Context;
+import android.content.Intent;
 import android.util.Log;
 
+import androidx.annotation.NonNull;
+
+import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken;
+import org.eclipse.paho.client.mqttv3.MqttCallbackExtended;
+import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
+import org.eclipse.paho.client.mqttv3.MqttException;
+import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
+
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Stack;
 //---------------------------------------------------------------------------------
-public class MqttWork {
+public class MqttWork implements MqttCallbackExtended{
   private static final String TAG = "MQTT_WORK";
   private static final String HubTag[] = {
 		  "api_v","id","client","type","update","updates","get","last","crc32","discover","name",
@@ -21,10 +36,26 @@ public class MqttWork {
 		  "text_f","label","title","dpad","joy","flags","tabs","switch_t","switch_i","button",
 		  "color","select","spinner","slider","datetime","date","time","confirm","prompt","area",
 		  "pass","input","hook","row","col","space","platform"};
-  private static String BigStrMsg 	= ""	;
-  private static int ChckCount 		= 0		;
-  public  static boolean CheckBracket = false;
+  private static String BigStrMsg 	  = ""		;
+  private static int 	ChckCount 	  = 0		;
+  public  static boolean CheckBracket = false	;
 
+  public  static volatile boolean isConnected = false   ;
+  public static String 		srvAddr 	= ""   	;
+  public static  int    	port    	= 1883	;
+  public static String 		login   	= ""	;
+  public static String   	password 	= ""	;
+  public static String  	codeWord   	= ""	;
+  public static String  	UserUID    	= ""	;
+  private static MqttClient   mqttClient   		;
+  public static List<String> listPing = null	;
+  public static List<String> listPfx  = null	;
+  private static boolean flReconnect = false	;
+  private static Context	context = null		;
+  public WorkCallback myCallback				;
+
+  //---------------------------------------------------------------------------------
+  public MqttWork(Context _con){ context = _con	;}
   //---------------------------------------------------------------------------------
   public static String   ReplaceTag(String Str){
 	int SizeArr = HubTag.length     ;
@@ -80,15 +111,15 @@ public class MqttWork {
   //---------------------------------------------------------------------------------
   public static String prework(String strMsg){
 	// меняем теги (типа #1a, #69...) на ключевые слова, это надо для JSON разбора!
-	strMsg = MqttWork.ReplaceTag(strMsg)      ;
+	strMsg = ReplaceTag(strMsg)      ;
 	// проверим баланс скобок
-	CheckBracket = MqttWork.checkBracketsBalance(strMsg)  ;
+	CheckBracket = checkBracketsBalance(strMsg)  ;
 	if(CheckBracket || ChckCount > 5){
 	  BigStrMsg = ""          ; ChckCount = 0 ;}
 	if(!CheckBracket) {
 	  BigStrMsg += strMsg     ;// если в сообщении нарушен баланс скобок, то
 	  ChckCount++             ;// попытаемся "склеить" несколько сообщений в одно
-	  CheckBracket = MqttWork.checkBracketsBalance(BigStrMsg)  ;
+	  CheckBracket = checkBracketsBalance(BigStrMsg)  ;
 	  if(CheckBracket){
 		strMsg = BigStrMsg  ;// если удалось "склеить" несколько сообщений в одно
 		BigStrMsg = ""      ; ChckCount = 0 ;
@@ -96,6 +127,195 @@ public class MqttWork {
 	}
 	return strMsg	;
   }
+  //---------------------------------------------------------------------------------
+  public void findDevice(String pfx) {
+	if(pfx != null && !pfx.isEmpty()) publishMessage(pfx,UserUID) ;}
+  //---------------------------------------------------------------
+  private void subscribeTopics(){
+	if(mqttClient.isConnected() && listPfx != null)
+	  for(String pfx : listPfx) subscribeToDevice(pfx)	;}
+  //---------------------------------------------------------------
+  private void subscribeToDevice(String pfx) {
+	if(pfx != null && !pfx.isEmpty()) subscribeToTopic(pfx + "/#")  ;}
+  //---------------------------------------------------------------
+  public void start(){
+	if(mqttClient == null || !mqttClient.isConnected()){
+	  DeviceAlarm.Work(null, null, null)			;
+//	  fillListPingPfx("fill_list")					;
+
+	  try{ connectToBroker()						;
+	  } catch(MqttException e){
+		Log.e(TAG, "Ошибка подключения к брокеру", e);
+	  }
+	}
+  }
+  //---------------------------------------------------------------------------------
+  // Подключение к брокеру
+  private void connectToBroker() throws MqttException{
+	MemoryPersistence persistence = new MemoryPersistence();
+	String            brokerUrl   = "tcp://" + srvAddr + ":" + port;
+
+	if(UserUID == null || UserUID.length() < 5){
+	  // !!! сделал так потому-что MqttClient.generateClientId() генерирует очень длинный ClientId !!!!
+	  UserUID = String.format("%08x", MqttClient.generateClientId().hashCode())  ;}
+
+	if(mqttClient == null)
+	  mqttClient = new MqttClient(brokerUrl, UserUID, null);// persistence);
+
+	if(mqttClient.isConnected()) return ;
+
+	MqttConnectOptions connOpts = new MqttConnectOptions();
+	connOpts.setCleanSession(true)						;
+	connOpts.setAutomaticReconnect(true)				;
+	if(login != null && password != null && !login.isEmpty() && !password.isEmpty()){
+	  connOpts.setUserName(login)						;
+	  connOpts.setPassword(password.toCharArray())		;}
+	mqttClient.connect(connOpts)						;
+	mqttClient.setCallback(this)						;
+	subscribeTopics()									;
+	Log.d(TAG, "Connected to broker")					;
+	reportBr("user_uid",UserUID,"state","Connected to broker")	;
+  }
+  //---------------------------------------------------------------
+  // Отключение от брокера
+  public void disconnectFromBroker() {
+	try { if(mqttClient.isConnected()) mqttClient.disconnect()	;
+	  reportBr("state","Disconnect from broker")			;
+	} catch (MqttException e) {Log.e(TAG, "Ошибка отключения от брокера", e);}
+  }
+  //---------------------------------------------------------------
+  // Подписка на тему
+  private void subscribeToTopic(String topic) {
+	try { if(mqttClient.isConnected())	mqttClient.subscribe(topic, 0);
+	} catch (MqttException e) {
+	  Log.e(TAG, "Ошибка подписки на тему", e)				;
+	  reportBr("message","Ошибка подписки на тему " + e)	;
+	}
+  }
+  //---------------------------------------------------------------
+  // Отправка сообщения
+  public void publishMessage(String topic, String message) {
+	if(topic.isEmpty()) return	;
+	try {
+	  MqttMessage mqttMessage = new MqttMessage(message.getBytes("UTF-8"));
+	  mqttMessage.setRetained(false);
+	  mqttMessage.setQos(0);
+	  if(mqttClient.isConnected())
+		mqttClient.publish(topic, mqttMessage);
+	} catch (UnsupportedEncodingException | MqttException e) {
+	  Log.e(TAG, "Ошибка отправки сообщения", e);
+	}
+  }
+  //---------------------------------------------------------------
+  // Реализация коллбэков MQTT
+  @Override
+  public void connectComplete(boolean reconnect, String serverURI){
+	Log.d(TAG, "Connect Complete" + serverURI)			;
+	if(listPfx != null) for(String pfx : listPfx) subscribeToDevice(pfx)		;
+
+	reportBr("state","Соединение завершено " + serverURI)          ;
+	reportW(String.format("Соединение завершено  %s",mqttClient.isConnected() ? "conn" : "no conn"))	;
+//	LogW("Соединение завершено "+ (mqttClient.isConnected() ? "conn" : "no conn"))	;
+  }
+  //---------------------------------------------------------------------------------
+  @Override
+  public void connectionLost(Throwable cause){
+	Log.w(TAG, "Потеря соединения " + cause.getMessage(), cause);
+	flReconnect = true	;
+	reportBr("state",String.format("Потеря соединения  %s",mqttClient.isConnected() ? "conn" : "no conn"))	;
+	reportW(String.format("Потеря соединения  %s",mqttClient.isConnected() ? "conn" : "no conn"))	;
+
+//	  try{
+//         mqttClient.reconnect()    ;
+//		 if(listPfx != null) for(String pfx : listPfx) subscribeToDevice(pfx)		;
+//	  } catch(MqttException e){
+//          Log.e(TAG, "Ошибка reconnect", e);
+//	  }
+  }
+  //---------------------------------------------------------------------------------
+  @Override
+  public void messageArrived(String topic, MqttMessage message) throws Exception{
+	String 	StrMsg = message.toString() ;
+	String 	StrAlarm = "", report = ""  ;
+	String 	devPfx = ""                 ;
+	boolean flAlarm = false         		;
+
+	StrMsg = prework(StrMsg)		;
+	// если CheckBracket == true
+	String LogStrMsg = String.format("(%d,%b) %s",StrMsg.length(),CheckBracket,StrMsg) ;
+	Log.i(TAG,LogStrMsg)               	;
+
+	try{
+	  if(!StrMsg.isEmpty() && StrMsg.length() < 5000 && CheckBracket){
+		Message msg = new Message(topic,StrMsg)  			;// определим тип сообщения
+		report = msg.report()	;
+		if(msg.getType() == Message.TypeMsg.update){
+		  devPfx   = msg.getDevPfx()               		;
+		  StrAlarm = new MyParserJson(StrMsg).GetKey("updates,"+codeWord)	;
+		  flAlarm  = DeviceAlarm.Work(devPfx,codeWord,StrAlarm)           ;}
+	  }
+	}catch(IllegalArgumentException e){
+	}
+
+	// TODOOO
+	if (flAlarm && myCallback != null) myCallback.onAlarm()	;
+//			!strSelRing.isEmpty()) {
+//	  Uri soundUri = Uri.parse(strSelRing)        		;
+//	  if (mediaPlayer == null)
+//		mediaPlayer = MediaPlayer.create(this, soundUri)	;
+//	  mediaPlayer.start()                         		;}
+
+	reportW(report)		;
+
+	// Отправка данных в активность
+	if(CheckBracket){
+	  reportBr("topic",topic,"alarm",StrAlarm,"message",StrMsg)    	;
+	}
+  }
+  //---------------------------------------------------------------------------------
+  @Override  public void deliveryComplete(IMqttDeliveryToken token){ }
+  //---------------------------------------------------------------------------------
+  public void fillListPingPfx(String cmd){
+	if(cmd == null || cmd.isEmpty() ||
+			UserUID == null || UserUID.isEmpty()) return  	;
+
+	listPing  = new ArrayList<>()                       ;
+	listPfx   = new ArrayList<>()                       ;
+
+	for(DeviceManager.Device dev : DeviceManager.getDeviceList()){
+	  listPfx.add(dev.getPrefix())                    ;
+	  String strPing = Message.getPing(dev.getPrefix(),dev.getUID(),UserUID)   ;
+	  if(!strPing.isEmpty()) listPing.add(strPing)   ;// соберём массив ping строк!
+	}
+  }
+  //---------------------------------------------------------------
+  public void workMqtt(String pfx,String typeMsg, String devUID){
+	if(pfx != null && typeMsg != null && UserUID != null
+			&& !pfx.isEmpty() && !typeMsg.isEmpty() && !UserUID.isEmpty()){
+	  Message msg = new Message(pfx, typeMsg, UserUID, devUID);
+	  publishMessage(msg.getTopic(), msg.getMsg());
+	}
+  }
+  //---------------------------------------------------------------
+  private void reportBr(@NonNull String ... str){
+	Intent broadcastIntent = new Intent()               ;
+	broadcastIntent.setAction("FROM_MQTT_SERVICE")  	;
+
+	List<String> listBr = new ArrayList<>()				;
+	for(String s : str) listBr.add(s)					;
+	for(int ix=0;ix<listBr.size();ix+=2){
+	  if(!listBr.get(ix+1).isEmpty())
+	    broadcastIntent.putExtra(listBr.get(ix),listBr.get(ix+1));}
+	context.sendBroadcast(broadcastIntent)              ;}
+  //---------------------------------------------------------------
+  private void reportW(String str){
+	if(myCallback != null){
+	  StackTraceElement ste = Thread.currentThread().getStackTrace()[3];
+	  str = String.format("[%s:%-4d] %s",ste.getMethodName(),ste.getLineNumber(),str)		;
+	  myCallback.onReportW(str);	;}
+  }
+  //---------------------------------------------------------------
+
   //---------------------------------------------------------------------------------
   public static class Message{
   private static final String TAG = "MSG";
@@ -120,7 +340,7 @@ public class MqttWork {
   public static String getPing(String pfx,String devUid,String userUid){
 	String ping = ""	;// topic: Boil_9140/a470ab51/d760bb65/ping
 	if(!pfx.isEmpty() && !userUid.isEmpty() && !devUid.isEmpty())
-	  ping = String.format("%s/%s/%s/ping",pfx, devUid, userUid)	;
+	  ping = java.lang.String.format("%s/%s/%s/ping",pfx, devUid, userUid)	;
 	return ping	;}
 
   //-------------------------------------------------------------------
@@ -194,7 +414,7 @@ public class MqttWork {
   public TypeMsg getType()	{ return type		;}
 
 	public String report(){
-		return String.format("%s:%s (%d bytes)",getDevPfx(),getType(),getMsg().length())	;}
+		return java.lang.String.format("%s:%s (%d bytes)",getDevPfx(),getType(),getMsg().length())	;}
 
 	//---------------------------------------------------------------------------------
   public enum TypeMsg{
@@ -220,5 +440,35 @@ public class MqttWork {
   }
 }
   //-----------------------------------------------------------------
+  private static class DeviceAlarm{
+	private String pfx      ;
+	private String codeW    ;
+	private String alrm     ;
+
+	private static List<DeviceAlarm> list    ;
+
+	public DeviceAlarm(String devPfx, String codeWord, String strAlarm){
+	  pfx = devPfx    ; codeW = codeWord  ; alrm = strAlarm   ;}
+
+	public static boolean Work(String devPfx, String codeWord, String strAlarm){
+	  boolean fl = false, isNew = true    ;
+	  if(devPfx == null || codeWord == null || strAlarm == null){
+		list = new ArrayList<>()   ; return false ;}
+
+	  for(DeviceAlarm da:list){
+		if(da.pfx.equals(devPfx) && da.codeW.equals(codeWord)){
+		  isNew = false                       ;// такой dewPfx,codeWord уже есть!
+		  fl = !da.alrm.equals(strAlarm)      ;// strAlarm не совпадает!!! ТРЕВоГА
+		  if(fl) da.alrm = strAlarm           ;
+		  break   ;
+		}
+	  }
+	  if(isNew) list.add(new DeviceAlarm(devPfx,codeWord,strAlarm)) ;
+	  return fl   ;}
+  }
+  public interface WorkCallback{
+	void onReportW(String str)	;
+	void onAlarm()				;
+  }
 }
 

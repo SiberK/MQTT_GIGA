@@ -52,6 +52,26 @@ public class MainActivity extends AppCompatActivity{
     private String StrMessage   ;
     private       String            StrDevice    ;
     //---------------------------------------------------------------
+	@SuppressLint("UnspecifiedRegisterReceiverFlag")
+	@Override
+	protected void onCreate(Bundle savedInstanceState) {
+	  super.onCreate(savedInstanceState)          ;
+	  setContentView(R.layout.activity_main)      ;
+
+	  // Регистрация ресивера
+	  IntentFilter filter = new IntentFilter()    ;
+	  filter.addAction("FROM_MQTT_SERVICE")       ;// Уникальное действие
+	  filter.addAction("TO_MAIN")                 ;// Уникальное действие
+
+	  // Регистрация ресивера
+	  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU)
+		registerReceiver(receiver, filter)		                ;
+	  else registerReceiver(receiver, filter,RECEIVER_NOT_EXPORTED);
+
+	  devManager = new DeviceManager(this)        ;
+	  createDeviceMatButtons()					;
+	}
+  //---------------------------------------------------------------
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, @NonNull Intent intent) {
@@ -240,26 +260,6 @@ private void onDeviceClicked(Device device) {
   sendBroadcast(broadcastIntent)          					;
 }
   //---------------------------------------------------------------
-  @SuppressLint("UnspecifiedRegisterReceiverFlag")
-  @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState)          ;
-        setContentView(R.layout.activity_main)      ;
-
-        // Регистрация ресивера
-        IntentFilter filter = new IntentFilter()    ;
-        filter.addAction("FROM_MQTT_SERVICE")       ;// Уникальное действие
-        filter.addAction("TO_MAIN")                 ;// Уникальное действие
-
-	// Регистрация ресивера
-	if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU)
-	  registerReceiver(receiver, filter)		                ;
-	else registerReceiver(receiver, filter,RECEIVER_NOT_EXPORTED);
-
-        devManager = new DeviceManager(this)        ;
-		createDeviceMatButtons()					;
-  }
-    //---------------------------------------------------------------
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         MenuInflater inflater = getMenuInflater();

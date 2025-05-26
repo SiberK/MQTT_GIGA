@@ -12,6 +12,7 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -26,6 +27,9 @@ import androidx.core.content.ContextCompat;
 import androidx.core.graphics.drawable.DrawableCompat;
 
 import com.google.android.material.button.MaterialButton;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import accountmanagerlib.AccManager.Account;
 import accountmanagerlib.AccountUiManager;
@@ -42,6 +46,7 @@ public class SettingsActivity extends AppCompatActivity
     private TextView    tvSound     ;
     private Uri         uriSound    ;
     private String      strSound    ;
+    private String      user_uid    ;
     private AccountUiManager accUiManager;
     private Account     curAccount  ;
     private boolean     flStartStop ;
@@ -55,8 +60,7 @@ public class SettingsActivity extends AppCompatActivity
             textView = findViewById(R.id.tvMsg)               ; textView.setText(intent.getStringExtra("message"));
             textView = findViewById(R.id.tvStat)              ; textView.setText(intent.getStringExtra("state"));
             textView = findViewById(R.id.tvAlarm)             ; textView.setText("Alarm: " + intent.getStringExtra("alarm"));
-            if(intent.getStringExtra("user_uid") !=null) {
-                tvUID.setText(intent.getStringExtra("user_uid"))  ;}
+            if(intent.getStringExtra("user_uid") !=null) {      tvUID.setText(user_uid = intent.getStringExtra("user_uid")) ;}
         }
     };
     //---------------------------------------------------------------
@@ -155,6 +159,17 @@ public class SettingsActivity extends AppCompatActivity
     }
     //---------------------------------------------------------------
     private void saveSettings() {                       // Сохранение настроек
+        List<String> listPing = new ArrayList<>()                       ;
+        List<String> listPfx  = new ArrayList<>()                       ;
+
+        for(DeviceManager.Device dev : DeviceManager.getDeviceList()){
+            listPfx.add(dev.getPrefix())                                ;
+            String strPing = MqttWork.Message.getPing(dev.getPrefix(),dev.getUID(),user_uid)   ;
+            if(!strPing.isEmpty()) listPing.add(strPing)                ;// соберём массив ping строк!
+        }
+        String strListPing = TextUtils.join("," , listPing)     ;
+        String strListPfx  = TextUtils.join("," , listPfx)      ;
+
         if(uriSound != null)  strSound = uriSound.toString()    ;
         getSharedPreferences("MQTT_SETTINGS", MODE_PRIVATE)
                 .edit()
@@ -166,19 +181,21 @@ public class SettingsActivity extends AppCompatActivity
                 .putString("CODE_WORD"  , etCodeWord.getText().toString())
                 .putString("USER_UID"   , tvUID     .getText().toString())
                 .putString("SEL_RINGTONE",strSound)
+                .putString("LIST_PING"  , strListPing)
+                .putString("LIST_PFX"   , strListPfx)
                 .apply();
     }
     //---------------------------------------------------------------
     // Загрузка сохраненных настроек
     private void loadSettings() {
         SharedPreferences prefs = getSharedPreferences("MQTT_SETTINGS", MODE_PRIVATE);
-        String serverAddress = prefs.getString("SRV_ADDRESS", "test.mosquitto.org");
-        int port            = prefs.getInt   ("PORT"        , 1883)     ; // 1883 - стандартный порт MQTT
+        String serverAddress = prefs.getString("SRV_ADDRESS", "")       ;
+        int port            = prefs.getInt   ("PORT"        , 0 )       ; // 1883 - стандартный порт MQTT
         String login        = prefs.getString("LOGIN"       , "")       ;
         String password     = prefs.getString("PASSWORD"    , "")       ;
-        String topicName    = prefs.getString("TOPIC_NAME"  , "test512");
+        String topicName    = prefs.getString("TOPIC_NAME"  , "")       ;
         String codeWord     = prefs.getString("CODE_WORD"   , "")       ;
-        String user_uid     = prefs.getString("USER_UID"    , "")       ;
+               user_uid     = prefs.getString("USER_UID"    , "")       ;
         strSound            = prefs.getString("SEL_RINGTONE", "")       ;
         uriSound            = Uri.parse(strSound)   ;
         String strPort = String.valueOf(port)   ;
@@ -186,7 +203,7 @@ public class SettingsActivity extends AppCompatActivity
         curAccount = new Account(serverAddress, strPort, login, password)    ;
         tvAccount.setText(curAccount.toString());
 
-        etDevPfx.setText(topicName) ;
+        etDevPfx    .setText(topicName) ;
         etCodeWord  .setText(codeWord)  ;
         tvUID       .setText(user_uid)  ;
         tvSound     .setText(strSound)  ;
@@ -194,6 +211,7 @@ public class SettingsActivity extends AppCompatActivity
     //---------------------------------------------------------------
     // Запуск сервиса
     private void startMqttService() {
+        saveSettings()  ;
         serviceIntent.putExtra("SERVER_ADDRESS" , curAccount.getServer());
         serviceIntent.putExtra("PORT"           , Integer.parseInt(curAccount.getPort()));
         serviceIntent.putExtra("LOGIN"          , curAccount.getLogin());
@@ -202,14 +220,12 @@ public class SettingsActivity extends AppCompatActivity
         serviceIntent.putExtra("CODE_WORD"      , etCodeWord.getText().toString());
         serviceIntent.putExtra("USER_UID"       , tvUID.getText().toString());
         serviceIntent.putExtra("SEL_RINGTONE"   , strSound);
-//        ContextCompat.startForegroundService(this, serviceIntent);
         startService(serviceIntent) ;
         Toast.makeText(SettingsActivity.this, "Сервис запущен", Toast.LENGTH_SHORT).show();
     }
     //---------------------------------------------------------------
     // Остановка сервиса
     private void stopMqttService() {
-//        Intent serviceIntent = new Intent(SettingsActivity.this, MQTTService.class);
         if(serviceIntent != null){
             stopService(serviceIntent);
             Toast.makeText(SettingsActivity.this, "Сервис остановлен", Toast.LENGTH_SHORT).show();}
@@ -222,13 +238,11 @@ public class SettingsActivity extends AppCompatActivity
     }
     //---------------------------------------------------------------
     @Override
-    public void onAccountListDismissed() {
-        // Можно добавить дополнительную логику при закрытии списка
+    public void onAccountListDismissed() {  // Можно добавить дополнительную логику при закрытии списка
     }
     //---------------------------------------------------------------
     @Override
-    public void onAccountUpdated() {
-        // Обновление UI при изменении аккаунтов
+    public void onAccountUpdated() {        // Обновление UI при изменении аккаунтов
     }
     //---------------------------------------------------------------
     @Override
