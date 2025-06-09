@@ -43,7 +43,8 @@ public class MQTTService extends Service{
     public static volatile boolean isRunning   = false  ;
 	public static volatile boolean flRestarted = false	;
   	public static volatile boolean 	flCheck    = false	;
-	private volatile boolean isServiceRunning  = false	;
+  	private static Intent 			intentRestart		;
+  	private volatile boolean isServiceRunning  = false	;
     private static         String  strSelRing = ""		;
     private static MediaPlayer 		mediaPlayer 		;
 //    private Timer   timerPing       ;
@@ -55,7 +56,10 @@ public class MQTTService extends Service{
 	private  OutputStream    tcpOut    = null			;
   	private  Thread          threadTcp = null			;
   	private  Thread 		 threadUdp = null			;
-	private static MqttWork workerMqtt = null			;
+	private MqttWork 		workerMqtt = null			;
+  	private Notification.Builder notiBuilder = null 	;
+  	private NotificationManager  notiManager = null		;
+
   //---------------------------------------------------------------
 	@SuppressLint("UnspecifiedRegisterReceiverFlag")
 	@Override
@@ -66,7 +70,7 @@ public class MQTTService extends Service{
 	  IntentFilter filter = new IntentFilter("TO_MQTT_SERVICE");
 	  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU)
 		registerReceiver(receiver, filter)		                ;
-	  else registerReceiver(receiver, filter,RECEIVER_NOT_EXPORTED);
+	  else registerReceiver(receiver, filter,RECEIVER_EXPORTED);
 	  StartForeground()           ;
 	}
   //---------------------------------------------------------------
@@ -95,7 +99,7 @@ public class MQTTService extends Service{
 //        Log.d(TAG, "onStartCommand");
 	String 	str	;
 	int 	val	;
-	if (isServiceRunning){ LogW("check")			;  return START_STICKY	;}
+	if (isServiceRunning){ Log.i(TAG,"check"); LogW("check") ;  return START_STICKY	;}
 
 //	if(flRestarted){ flRestarted = false			; LogW("restarted!")	;} else LogW("onStart")	;
 	isServiceRunning = true	;
@@ -105,15 +109,6 @@ public class MQTTService extends Service{
 	  workerMqtt.myCallback = new MqttWork.WorkCallback(){
 				@Override public void onReportW(String str)	{ ReportW(str)	;}
 				@Override public void onAlarm()				{ Alarm()		;}};
-//
-//	  // Получаем параметры из интента
-//	  val = intent.getIntExtra("PORT", 0)			; if(val != 0) 	  MqttWork.port 	= val	;
-//	  str = intent.getStringExtra("SERVER_ADDRESS")	; if(str != null) MqttWork.srvAddr 	= str	;
-//	  str = intent.getStringExtra("LOGIN")			; if(str != null) MqttWork.login 	= str	;
-//	  str = intent.getStringExtra("PASSWORD")		; if(str != null) MqttWork.password	= str	;
-//	  str = intent.getStringExtra("CODE_WORD")		; if(str != null) MqttWork.codeWord	= str	;
-//	  str = intent.getStringExtra("USER_UID")		; if(str != null) MqttWork.UserUID 	= str	;
-//	  str = intent.getStringExtra("SEL_RINGTONE")	; if(str != null) strSelRing 		= str	;
 	}
 
 	SharedPreferences prefs         = getSharedPreferences("MQTT_SETTINGS", MODE_PRIVATE);
@@ -155,23 +150,31 @@ public class MQTTService extends Service{
 	  PendingIntent pendingIntent = PendingIntent.getActivity(this, 0,
 			  activityIntent,PendingIntent.FLAG_IMMUTABLE);
 
-	  Notification.Builder notificationBuilder = new Notification.Builder(this,CHANNEL_ID)
-			  .setSmallIcon(R.mipmap.ic_launcher)
+	  notiBuilder = new Notification.Builder(this,CHANNEL_ID)
+//			  .setSmallIcon(R.mipmap.ic_launcher)
+			  .setSmallIcon(R.drawable.ic_notification)
 			  .setContentTitle("My Awesome App")
 			  .setContentText("Doing some work...")
 			  .setOngoing(true)
 			  .setContentIntent(pendingIntent);
-	  Notification notification = notificationBuilder.build();
-	  NotificationManager manager = getSystemService(NotificationManager.class);
+	  Notification notification = notiBuilder.build();
+	  notiManager = getSystemService(NotificationManager.class);
 	  NotificationChannel serviceChannel = new NotificationChannel(
 			  CHANNEL_ID, "Foreground Service Channel",
 			  NotificationManager.IMPORTANCE_DEFAULT);
 
-	  manager.createNotificationChannel(serviceChannel);
+	  notiManager.createNotificationChannel(serviceChannel);
 
 	  startForeground(ID_SERVICE, notification);
-	  scheduleServiceCheck(this)	;
+	  scheduleServiceCheck(this,true)	;
 	}
+  }
+  //---------------------------------------------------------------
+  public void updateNotification(String title, String text) {
+	  if(title != null && text != null && !title.isEmpty() &&
+			  notiBuilder != null && notiManager != null){
+		notiBuilder.setContentTitle(title).setContentText(text)		;
+		notiManager.notify(ID_SERVICE, notiBuilder.build())			;}
   }
   //---------------------------------------------------------------
   private synchronized void setOutputStream(OutputStream stream) {this.tcpOut = stream; }
@@ -242,15 +245,14 @@ public class MQTTService extends Service{
 	} catch (IOException e) { Log.e(TAG,"",e)		;}}
   }
   //-----------------------------------------------------------------------------
-  private void LogW(String str)
-  { OutputStream localOut = getOutputStream();
+  private void LogW(String str) { OutputStream localOut = getOutputStream();
 	if (localOut == null) return ;
 	try{
 	  StackTraceElement ste = Thread.currentThread().getStackTrace()[3];
 	  str = String.format("[%s:%-4d] %s",ste.getMethodName(),ste.getLineNumber(),str)		;
 	  localOut.write(str.getBytes())				; localOut.flush()		;
 	} catch (IOException e) { Log.e(TAG,"",e)		;}
-   return ;}
+  }
 //-----------------------------------------------------------------------------
   private void executeTimerTask(){
 	PowerManager powerManager = (PowerManager) getSystemService(POWER_SERVICE);
@@ -261,7 +263,7 @@ public class MQTTService extends Service{
 	  PingTask()				;// Ваша логика таймера здесь
 	} finally { if (wakeLock.isHeld()) wakeLock.release()	;}}
   //---------------------------------------------------------------
-  public static void scheduleServiceCheck(Context context) {
+  public static void scheduleServiceCheck(Context context,boolean flStart) {
 	long triggerTime = SystemClock.elapsedRealtime() + TIME_CHECK;
 	AlarmManager alarmManager = (AlarmManager) context.getSystemService(ALARM_SERVICE);
 	Intent intent = new Intent(context, ServiceRestartReceiver.class)	;
@@ -273,19 +275,19 @@ public class MQTTService extends Service{
 	// Проверка разрешения для Android 13+
 	if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
 	  if (!alarmManager.canScheduleExactAlarms()) {
+// Если нет разрешения - вызываем диалоговое окно - запрос разрешения!
 		Intent intentEx = new Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
-//		context.startActivity(intentEx)				;
+//		context.startActivity(intentEx)				;// чё-то падает :(
 		return	;}}
-// Установка будильника
+// Установка/сброс будильника
 	try{
-	  if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-		alarmManager.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP,
-				triggerTime, pendingIntent)			;}
-	  else { alarmManager.setExact( AlarmManager.ELAPSED_REALTIME_WAKEUP,
-			  triggerTime, pendingIntent )			;}
-	}catch(Exception e){
-	  Log.w(TAG,"",e)	;
-	}
+	  if(flStart){
+		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+		  alarmManager.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP,triggerTime,pendingIntent);
+		else alarmManager.setExact(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerTime, pendingIntent);
+	  }
+	  else alarmManager.cancel(pendingIntent)	;
+	} catch(Exception e){	Log.w(TAG, "", e)	;}
   }
   //---------------------------------------------------------------
   //---------------------------------------------------------------
@@ -315,26 +317,25 @@ public class MQTTService extends Service{
 	//---------------------------------------------------------------
 //	private void stopTimerPing(){ if(timerPing != null){ timerPing.cancel()   ; timerPing = null  ;}}
 	//---------------------------------------------------------------
-//    private void findDevice(String pfx) {
-//        if(pfx != null) publishMessage(pfx,UserUID) ;
-//    }
-//    //---------------------------------------------------------------
-//    private void subscribeToDevice(String pfx) {
-//        if(pfx != null && !pfx.isEmpty()){
-//            subscribeToTopic(pfx + "/#")        ;
-//        }
-//    }
-//---------------------------------------------------------------
 	private final BroadcastReceiver receiver = new BroadcastReceiver() {
 	  @Override
 	  public void onReceive(Context context, @NonNull Intent intent) {
 		if(intent.getAction().equals("TO_MQTT_SERVICE")) {
 //                subscribeToDevice(intent.getStringExtra("prefix"));
-		  workerMqtt.findDevice(intent.getStringExtra("find"));
+		  String devUid = intent.getStringExtra("dev_uid")			;
+		  String devPfx = intent.getStringExtra("prefix")			;
+		  String typeMsg= intent.getStringExtra("type_msg")			;
+		  if(typeMsg == null || typeMsg.isEmpty()) return			;
+
+		  switch(typeMsg){
+			case "find": workerMqtt.findDevice(devPfx)		; break	;
+			default: workerMqtt.workMqtt(typeMsg,devPfx,devUid)	; break	;
+		  }
+
 		  workerMqtt.fillListPingPfx(intent.getStringExtra("fill_list_ping"))  ;
-		  workerMqtt.workMqtt(intent.getStringExtra("prefix"),
-				  intent.getStringExtra("type_msg"),
-				  intent.getStringExtra("dev_uid"));
+
+		  updateNotification(intent.getStringExtra("noti_title"),
+				  			 intent.getStringExtra("noti_text"))	;
 		}
 	  }
 	};
@@ -342,16 +343,20 @@ public class MQTTService extends Service{
   public static class ServiceRestartReceiver extends BroadcastReceiver {
 	@Override
 	public void onReceive(Context context, Intent intent) {
+	  SharedPreferences prefs = context.getSharedPreferences("MQTT_SETTINGS", MODE_PRIVATE);
+	  boolean flStart = prefs.getBoolean("START"      ,false)     ;
+
 	  if (!isServiceRunning(context)){
-		flRestarted = true	;
-		Intent intentSrv = new Intent(context, MQTTService.class)	;
-		Log.w(TAG, "Service not running! Restarting...");
-		if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-		  	 context.startForegroundService(intentSrv)		;
-		else context.startService(intentSrv)				;
+		if(flStart){
+		  flRestarted = true	;
+		  Intent intentSrv = new Intent(context, MQTTService.class)	;
+		  Log.w(TAG, "Service not running! Restarting...");
+		  if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
+			context.startForegroundService(intentSrv)		;
+		  else context.startService(intentSrv)				;}
 	  }
 	  else{ flCheck = true	; Log.i(TAG,"Check: Service running!")	;}
-	  scheduleServiceCheck(context);
+	  scheduleServiceCheck(context,flStart);
 	}
 
 	private boolean isServiceRunning(Context context) {

@@ -22,20 +22,20 @@ import java.util.Stack;
 public class MqttWork implements MqttCallbackExtended{
   private static final String TAG = "MQTT_WORK";
   private static final String HubTag[] = {
-		  "api_v","id","client","type","update","updates","get","last","crc32","discover","name",
-		  "prefix","icon","PIN","version","max_upl","http_t","ota_t","ws_port","modules","total",
-		  "used","code","OK",
-		  "ack","info","controls","ui","files","notice","alert","push","script","refresh","print",
-		  "error","fs_err","ota_next","ota_done","ota_err","fetch_start","fetch_chunk","fetch_err",
-		  "upload_next","upload_done","upload_err","ota_url_err","ota_url_ok",
-		  "value","maxlen","rows","regex","align","min","max","step","dec","unit","fsize","action",
-		  "nolabel","suffix","notab","square","disable","hint","len","wwidth","wheight","data",
-		  "func","keep","exp",
-		  "plugin","js","css","ui_file","stream","port","canvas","width","height","active","html",
-		  "dummy","menu","gauge","gauge_r","gauge_l","led","log","table","image","text","display",
-		  "text_f","label","title","dpad","joy","flags","tabs","switch_t","switch_i","button",
-		  "color","select","spinner","slider","datetime","date","time","confirm","prompt","area",
-		  "pass","input","hook","row","col","space","platform"};
+		  "api_v","id","client","type","update","updates","get","last","crc32","discover","name",	//	  0 ..  10	#00
+		  "prefix","icon","PIN","version","max_upl","http_t","ota_t","ws_port","modules","total",	//	 11 ..  20	#0B
+		  "used","code","OK",																		//	 21 ..  23	#15
+		  "ack","info","controls","ui","files","notice","alert","push","script","refresh","print",	//	 24 ..  34	#18
+		  "error","fs_err","ota_next","ota_done","ota_err","fetch_start","fetch_chunk","fetch_err",	//	 35 ..  42	#23
+		  "upload_next","upload_done","upload_err","ota_url_err","ota_url_ok",						//	 43 ..  47	#2B
+		  "value","maxlen","rows","regex","align","min","max","step","dec","unit","fsize","action",	//	 48 ..  59	#30
+		  "nolabel","suffix","notab","square","disable","hint","len","wwidth","wheight","data",		//	 60 ..  70	#3C
+		  "func","keep","exp",																		//	 71 ..  73	#47
+		  "plugin","js","css","ui_file","stream","port","canvas","width","height","active","html",	//	 74 ..  84	#4A
+		  "dummy","menu","gauge","gauge_r","gauge_l","led","log","table","image","text","display",	//	 85 ..  95	#55
+		  "text_f","label","title","dpad","joy","flags","tabs","switch_t","switch_i","button",		//	 96 .. 105	#60
+		  "color","select","spinner","slider","datetime","date","time","confirm","prompt","area",	//	106 .. 115	#6A
+		  "pass","input","hook","row","col","space","platform"};									//	116 .. 122	#74
   private static String BigStrMsg 	  = ""		;
   private static int 	ChckCount 	  = 0		;
   public  static boolean CheckBracket = false	;
@@ -52,26 +52,27 @@ public class MqttWork implements MqttCallbackExtended{
   public static List<String> listPfx  = null	;
   private static boolean flReconnect = false	;
   private static Context	context = null		;
-  public WorkCallback myCallback				;
+  private static String 	delayTopic   = ""	;
+  private static String 	delayMessage = ""	;
+  public 	WorkCallback	myCallback			;
 
   //---------------------------------------------------------------------------------
   public MqttWork(Context _con){ context = _con	;}
   //---------------------------------------------------------------------------------
   public static String   ReplaceTag(String Str){
-	int SizeArr = HubTag.length     ;
-	String  strT, strR              ;
+	int SizeArr = HubTag.length     			;
+	String  strT, strR              			;
 	for(int ix=SizeArr-1;ix>=0;ix--){
-	  strT = String.format("#%x",ix)      ;
-	  strR = String.format("\"%s\"",HubTag[ix])           ;
-	  Str = Str.replace(strT,strR);
+	  strT = String.format("#%x",ix)      		;
+	  strR = String.format("\"%s\"",HubTag[ix])	;
+	  Str = Str.replace(strT,strR)				;
 	}
-	Str = Str.replace("#","")       ;
+	Str = Str.replace("#","")       			;
 	return Str   ;}
   //---------------------------------------------------------------------------------
   // Этот метод написал GIGAchat  !!!!
   public static boolean checkBracketsBalance(String input) {
-	if (input == null || input.isEmpty())
-	  return true;
+	if (!noEmpty(input))  return true	;
 
 	Stack<Character> stack = new Stack<>();
 
@@ -129,14 +130,15 @@ public class MqttWork implements MqttCallbackExtended{
   }
   //---------------------------------------------------------------------------------
   public void findDevice(String pfx) {
-	if(pfx != null && !pfx.isEmpty()) publishMessage(pfx,UserUID) ;}
+	if(noEmpty(pfx)) publishMessage(pfx,UserUID) ;
+  }
   //---------------------------------------------------------------
   private void subscribeTopics(){
 	if(mqttClient.isConnected() && listPfx != null)
 	  for(String pfx : listPfx) subscribeToDevice(pfx)	;}
   //---------------------------------------------------------------
   private void subscribeToDevice(String pfx) {
-	if(pfx != null && !pfx.isEmpty()) subscribeToTopic(pfx + "/#")  ;}
+	if(noEmpty(pfx)) subscribeToTopic(pfx + "/#")  ;}
   //---------------------------------------------------------------
   public void start(){
 	if(mqttClient == null || !mqttClient.isConnected()){
@@ -167,7 +169,7 @@ public class MqttWork implements MqttCallbackExtended{
 	MqttConnectOptions connOpts = new MqttConnectOptions();
 	connOpts.setCleanSession(true)						;
 	connOpts.setAutomaticReconnect(true)				;
-	if(login != null && password != null && !login.isEmpty() && !password.isEmpty()){
+	if(noEmpty(login) && noEmpty(password)){
 	  connOpts.setUserName(login)						;
 	  connOpts.setPassword(password.toCharArray())		;}
 	mqttClient.connect(connOpts)						;
@@ -194,7 +196,7 @@ public class MqttWork implements MqttCallbackExtended{
   }
   //---------------------------------------------------------------
   // Отправка сообщения
-  public void publishMessage(String topic, String message) {
+  public static void publishMessage(String topic, String message) {
 	if(topic.isEmpty()) return	;
 	try {
 	  MqttMessage mqttMessage = new MqttMessage(message.getBytes("UTF-8"));
@@ -249,10 +251,13 @@ public class MqttWork implements MqttCallbackExtended{
 	  if(!StrMsg.isEmpty() && StrMsg.length() < 5000 && CheckBracket){
 		Message msg = new Message(topic,StrMsg)  			;// определим тип сообщения
 		report = msg.report()	;
+		Log.i(TAG, "topic:" + topic + "  type:" + msg.getType())			;
+
 		if(msg.getType() == Message.TypeMsg.update){
 		  devPfx   = msg.getDevPfx()               		;
 		  StrAlarm = new MyParserJson(StrMsg).GetKey("updates,"+codeWord)	;
-		  flAlarm  = DeviceAlarm.Work(devPfx,codeWord,StrAlarm)           ;}
+		  if(noEmpty(StrAlarm))
+		  	flAlarm  = DeviceAlarm.Work(devPfx,codeWord,StrAlarm)           ;}
 	  }
 	}catch(IllegalArgumentException e){
 	}
@@ -289,11 +294,30 @@ public class MqttWork implements MqttCallbackExtended{
 	}
   }
   //---------------------------------------------------------------
-  public void workMqtt(String pfx,String typeMsg, String devUID){
-	if(pfx != null && typeMsg != null && UserUID != null
-			&& !pfx.isEmpty() && !typeMsg.isEmpty() && !UserUID.isEmpty()){
-	  Message msg = new Message(pfx, typeMsg, UserUID, devUID);
-	  publishMessage(msg.getTopic(), msg.getMsg());
+  public static void onItemSelect(String name, int position){
+	String devPfx = MainActivity.getCurrDevPfx()	;
+	String devUid = MainActivity.getCurrDevUid()	;
+								//	Boil_9140/a470ab51/e653ea40/set/slc_m	2
+	String tpc = String.format("%s/%s/%s/set/%s",devPfx,devUid,UserUID,name)	;
+	String msg = new Integer(position).toString()	;
+	publishMessage(tpc,msg)							;
+  }
+  //---------------------------------------------------------------
+  public static void onClickFaceElement(String type,String name,String val){
+	String devPfx = MainActivity.getCurrDevPfx()	;
+	String devUid = MainActivity.getCurrDevUid()	;
+	String msg = delayMessage = val	;
+	String tpc = String.format("%s/%s/%s/set/%s",devPfx,devUid,UserUID,name)	;
+	delayTopic = String.format("%s/%s/get/%s",devPfx,devUid,name)	;
+	Log.i(TAG,tpc)	;
+	publishMessage(tpc,msg)							;
+  }
+  //---------------------------------------------------------------
+  public static void workMqtt(String typeMsg,String pfx,String devUID){
+	if(noEmpty(typeMsg)){
+	  Message msg = new Message(typeMsg, pfx, devUID, UserUID);
+	  if(!msg.getTopic().isEmpty())
+	    publishMessage(msg.getTopic(), msg.getMsg())	;
 	}
   }
   //---------------------------------------------------------------
@@ -328,45 +352,14 @@ public class MqttWork implements MqttCallbackExtended{
   private String srcUid		;
 //-------------------------------------------------------------------
   // ЗАПРОСЫ
-  public Message(String pfx, String typeMsg, String userUID, String devUID){
-	if(!typeMsg.isEmpty()){
-	  try{
-		type = TypeMsg.valueOf(typeMsg);
+  public Message(String typeMsg, String pfx, String devUID, String userUID){
+	if(noEmpty(typeMsg)){
+	  try{ type = TypeMsg.valueOf(typeMsg)	;
 	  } catch(IllegalArgumentException e){type = TypeMsg.isEmpty;}
 	}
 	set(pfx, userUID, devUID);
   }
 
-  public static String getPing(String pfx,String devUid,String userUid){
-	String ping = ""	;// topic: Boil_9140/a470ab51/d760bb65/ping
-	if(!pfx.isEmpty() && !userUid.isEmpty() && !devUid.isEmpty())
-	  ping = java.lang.String.format("%s/%s/%s/ping",pfx, devUid, userUid)	;
-	return ping	;}
-
-  //-------------------------------------------------------------------
-  public static String getFind(String prefix, String userUID){
-	String find = ""	;// topic: Boil_9140 	msg: d760bb65
-
-	return find			;}
-
-  //-------------------------------------------------------------------
-  public void set(String pfx, String userUid, String devUid){
-	msg     = ""	;topic = ""	;
-	switch(type){
-	  case find:	if(!pfx.isEmpty() && !userUid.isEmpty()){
-		topic = pfx	;msg   = userUid;}
-		break	;
-
-	  case ping:	if(!pfx.isEmpty() && !userUid.isEmpty() && !devUid.isEmpty()){
-		  				topic = pfx + "/" + devUid + "/" + userUid + "/ping";}
-		break	;
-
-	  case get_ui:	if(!pfx.isEmpty() && !userUid.isEmpty() && !devUid.isEmpty()){
-						topic = pfx + "/" + devUid + "/" + userUid + "/ui";}
-		break	;
-	}
-  }
-//-------------------------------------------------------------------
   // ОТВЕТЫ
   public Message(String tpc, String ms){
 	topic = tpc		; msg  = ms		; type  = TypeMsg.isEmpty	;
@@ -386,11 +379,23 @@ public class MqttWork implements MqttCallbackExtended{
 
 	  if(parts.length > 3){
 	  	if(parts[1].equals("hub")){
-			dstUid = parts[2]	; srcUid = parts[3]	;}
+			dstUid = parts[2]	; srcUid = parts[3]	;
+			if(type == TypeMsg.ack && dstUid.equals(UserUID)){ // если это ответ на наш 'set'
+			  if(noEmpty(delayTopic) && noEmpty(delayMessage)){
+//				publishMessage(delayTopic, delayMessage);
+				delayTopic = delayMessage = ""		;
+			  }
+			}
+		}
 	  	if(parts[3].equals("status")){
 			srcUid = parts[2]	;
 			if(ms.equals("offline")) type = TypeMsg.offline	;
 			if(ms.equals("online" )) type = TypeMsg.online	;}
+		else if(parts[3].equals("get")){
+		  	srcUid = parts[2]	; type = TypeMsg.get		;}
+		else if(parts.length > 4 && parts[4].equals("set")){
+			srcUid = parts[2]	; type = TypeMsg.set		;
+			dstUid = parts[1]	;}
 	  }
 	}
 
@@ -401,10 +406,41 @@ public class MqttWork implements MqttCallbackExtended{
 						devName = parser.getValue("name");
 		break;
 	}
-	Log.i(TAG, "topic:" + topic + "  type:" + type);
   }
 
   //---------------------------------------------------------------------------------
+  public void set(String pfx, String userUid, String devUid){
+	msg     = ""	;topic = ""	;
+	switch(type){
+	  case find:	if(noEmpty(pfx) && noEmpty(userUid)){ topic = pfx	; msg = userUid;}
+		break	;
+
+	  case ping:	if(noEmpty(pfx) && noEmpty(userUid) && noEmpty(devUid))
+						topic = String.format("%s/%s/%s/ping",pfx,devUid,userUid)	;
+		break	;
+
+	  case get_ui:	if(noEmpty(pfx) && noEmpty(userUid) && noEmpty(devUid))
+						topic = String.format("%s/%s/%s/ui",pfx,devUid,userUid)	;
+	  				// если devUid неизвестен, то даём команду "find" !!!
+	  				else if(noEmpty(pfx) && noEmpty(userUid)){ topic = pfx	; msg = userUid;}
+		break	;
+	}
+  }
+
+	//-------------------------------------------------------------------
+  public static String getPing(String pfx,String devUid,String userUid){
+	String ping = ""	;// topic: Boil_9140/a470ab51/d760bb65/ping
+	if(noEmpty(pfx) && noEmpty(userUid) && noEmpty(devUid))
+	  ping = java.lang.String.format("%s/%s/%s/ping",pfx, devUid, userUid)	;
+	return ping	;}
+
+	//-------------------------------------------------------------------
+	public static String getFind(String prefix, String userUID){
+	  String find = ""	;// topic: Boil_9140 	msg: d760bb65
+
+	  return find			;}
+
+	//-------------------------------------------------------------------
   public String getTopic()	{ return topic  == null ? "" : topic	;}
   public String getMsg()	{ return msg    == null ? "" : msg		;}
   public String getDevPfx()	{ return devPfx == null ? "" : devPfx	;}
@@ -412,22 +448,23 @@ public class MqttWork implements MqttCallbackExtended{
   public String getDstUid()	{ return dstUid	== null ? "" : dstUid	;}
   public String getSrcUid()	{ return srcUid	== null ? "" : srcUid	;}
   public TypeMsg getType()	{ return type		;}
-
-	public String report(){
+  public String report(){
 		return java.lang.String.format("%s:%s (%d bytes)",getDevPfx(),getType(),getMsg().length())	;}
 
-	//---------------------------------------------------------------------------------
+	//================================================================================
   public enum TypeMsg{
 	// ответ на ping
 	OK,                // topic: Boil_9140/hub/d760bb65/a470ab51  	msg: {"id":"a470ab51","type":"OK"}
 	// ответ на get_ui
 	ui,                // topic: Boil_9140/hub/d760bb65/a470ab51 	msg: {"id":"a470ab51","type":"ui","controls":[{"id":"_menu","type":................"icon":"f150","color":3647804}]}]}
-	// ответ на
+	// ответ на get (только один запрашиваемый параметр) и периодический полный ответ,
 	update,            // topic: Boil_9140/hub						msg: {"updates":{"alarm":{"value":"0"},"t_in":{"value":"ОШБК"},"t_out......,"btn_mll_dn":{"color":3647804,"icon":"f150"}},"id":"a470ab51","type":"update"}
 	// ответ на get_discover и на find
 	discover,          // topic: Boil_9140/hub/d760bb65/a470ab51 	msg: {"id":"a470ab51","type":"discover","name":"Boil40","prefix":"Boil_9140","icon":"f7e4","PIN":0,"version":"5.0.07","platform":"ESP32","max_upl":512,"api_v":1,"http_t":0,"ota_t":"bin","ws_port":81,"modules":16256}
 	offline,           // topic: Boil_9140/hub/a470ab51/status  	msg: offline
 	online,            // topic: Boil_9140/hub/a470ab51/status  	msg: online
+	// ответ на set
+	ack,			   // topic: Boil_9140/hub/e653ea40/a470ab51	msg: {"id":"a470ab51","type":"ack","name":"sw_onoff"}   #{#1:"a470ab51",#3:#18,#a:"sw_onoff"}#
 
 	// запросы
 	get_discover,      // topic: Boil_9140/a470ab51			 		msg: d760bb65
@@ -435,7 +472,9 @@ public class MqttWork implements MqttCallbackExtended{
 	ping,              // topic: Boil_9140/a470ab51/d760bb65/ping  				msg:
 	unfocus,           // topic: Boil_9140/a470ab51/d760bb65/unfocus 			msg:
 	unix,              // topic: Boil_9140/a470ab51/d760bb65/unix/1746720627	msg:
-	get_ui,            // topic: Boil_9140/a470ab51/d760bb65/ui				msg:
+	get_ui,            // topic: Boil_9140/a470ab51/d760bb65/ui					msg:
+	set,			   // topic: Boil_9140/a470ab51/e653ea40/set/sw_onoff		msg: 0
+	get,			   // topic: Boil_9140/hub/a470ab51/get/sw_onoff			msg: 0
 	isEmpty;
   }
 }
@@ -459,16 +498,22 @@ public class MqttWork implements MqttCallbackExtended{
 		if(da.pfx.equals(devPfx) && da.codeW.equals(codeWord)){
 		  isNew = false                       ;// такой dewPfx,codeWord уже есть!
 		  fl = !da.alrm.equals(strAlarm)      ;// strAlarm не совпадает!!! ТРЕВоГА
-		  if(fl) da.alrm = strAlarm           ;
+		  if(fl)
+			da.alrm = strAlarm           ;
 		  break   ;
 		}
 	  }
 	  if(isNew) list.add(new DeviceAlarm(devPfx,codeWord,strAlarm)) ;
 	  return fl   ;}
   }
+  //--------------------------------------------------------------------------------------
+  public static boolean noEmpty(String str){ return str != null && !str.isEmpty()	;}
+  //--------------------------------------------------------------------------------------
   public interface WorkCallback{
 	void onReportW(String str)	;
 	void onAlarm()				;
   }
+  //--------------------------------------------------------------------------------------
+  //--------------------------------------------------------------------------------------
 }
 

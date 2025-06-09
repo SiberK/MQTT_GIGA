@@ -3,6 +3,7 @@ package com.example.mqtt_giga;
 import android.content.Context;
 import android.util.Log;
 
+import static com.example.mqtt_giga.MqttWork.noEmpty;
 import com.google.gson.Gson;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
@@ -160,6 +161,7 @@ public Device addDevice(String pfx){
         public String getUID()             { return uid   ;}
         public boolean setUID(String val) { boolean fl = !val.equals(uid) ; uid = val    ; return fl  ;}
 
+        public String getNamePfx()        {return  noEmpty(name) ? name : prefix   ;}
         public String getName()           {return  name   ;}
         public boolean setName(String val){ boolean fl = !val.equals(name) ; name = val    ; return fl  ;}
 

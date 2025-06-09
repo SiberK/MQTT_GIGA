@@ -34,18 +34,18 @@
             android:layout_weight="1"
             android:orientation="vertical">
             <!-- Порт сервера -->
-            <TextView
-                android:id="@+id/textViewPort"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/port_" />
+	        <TextView
+		        android:id="@+id/textViewPort"
+		        android:layout_width="wrap_content"
+		        android:layout_height="wrap_content"
+		        android:text="@string/port_" />
 
-            <EditText
-                android:id="@+id/editTextPort"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="@string/port"
-                android:inputType="number" />
+	        <EditText
+		        android:id="@+id/editTextPort"
+		        android:layout_width="match_parent"
+		        android:layout_height="wrap_content"
+		        android:hint="@string/port"
+		        android:inputType="number" />
         </LinearLayout>
     </LinearLayout>
 

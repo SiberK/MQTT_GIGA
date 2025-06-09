@@ -31,6 +31,7 @@ import com.google.android.material.button.MaterialButton;
 import java.util.ArrayList;
 import java.util.List;
 
+import accountmanagerlib.AccManager;
 import accountmanagerlib.AccManager.Account;
 import accountmanagerlib.AccountUiManager;
 //---------------------------------------------------------------
@@ -47,11 +48,10 @@ public class SettingsActivity extends AppCompatActivity
     private Uri         uriSound    ;
     private String      strSound    ;
     private String      user_uid    ;
-    private AccountUiManager accUiManager;
-    private Account     curAccount  ;
     private boolean     flStartStop ;
-    private static final int               RINGTONE_PICKER_REQUEST = 1;
-    Intent serviceIntent            ;
+    private AccountUiManager     accUiManager;
+    private AccManager.Account curAccount  ;
+    private static final int         RINGTONE_PICKER_REQUEST = 1;
     //---------------------------------------------------------------
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
@@ -69,16 +69,15 @@ public class SettingsActivity extends AppCompatActivity
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
-//        String value = getIntent().getStringExtra("key");
         flStartStop = false                         ;
-        serviceIntent = new Intent(this, MQTTService.class);
+//        serviceIntent = new Intent(this, MQTTService.class);
 
         // Регистрация ресивера
         IntentFilter filter = new IntentFilter()    ;
         filter.addAction("FROM_MQTT_SERVICE")       ;
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU)
             registerReceiver(receiver, filter)		                ;
-        else registerReceiver(receiver, filter,RECEIVER_NOT_EXPORTED);
+        else registerReceiver(receiver, filter,RECEIVER_EXPORTED);
 
         // Инициализация элементов интерфейса
         tvAccount  = findViewById(R.id.tvAccount)  ;
@@ -88,17 +87,6 @@ public class SettingsActivity extends AppCompatActivity
         MaterialButton btnStart = findViewById(R.id.btnStart)   ;
         tvSound     = findViewById(R.id.tvSound)    ;
 
-        tvAccount.setOnClickListener(v->accUiManager.showAccountsList());
-        accUiManager = new AccountUiManager(this,this);
-        loadSettings()                              ; // Загрузка сохраненных настроек
-        flStartStop = MQTTService.isRunning;
-        btnStart.setText(flStartStop ? "СТОП" : "СТАРТ")    ;
-        String devPfx = etDevPfx != null ? etDevPfx.getText().toString() : ""   ;
-
-        // Обработчик кнопки выбора звука
-        findViewById(R.id.tvSound).setOnClickListener(v->showSoundPicker());
-        findViewById(R.id.ivPrfx) .setOnClickListener(v->addDevice(devPfx));
-
         // Обработчики кнопок запуска и остановки сервиса
         if(btnStart != null){
             btnStart.setBackgroundResource(R.drawable.btn_device_bg)	;
@@ -106,16 +94,28 @@ public class SettingsActivity extends AppCompatActivity
             btnStart.setPadding(8,8,8,8)			                    ;
             btnStart.setOnClickListener(v->startStopService(btnStart))      ;
         }
+
+        tvAccount.setOnClickListener(v->accUiManager.showAccountsList());
+        accUiManager = new AccountUiManager(this,this);
+        loadSettings()                              ; // Загрузка сохраненных настроек
+        flStartStop = MQTTService.isRunning         ;
+        btnStart.setText(flStartStop ? "СТОП" : "СТАРТ")    ;
+        String devPfx = etDevPfx != null ? etDevPfx.getText().toString() : ""   ;
+
+        // Обработчик кнопки выбора звука
+        findViewById(R.id.tvSound).setOnClickListener(v->showSoundPicker());
+        findViewById(R.id.ivPrfx) .setOnClickListener(v->addDevice(devPfx));
     }
     //-------------------------------------------------------------------
     private void startStopService(MaterialButton btnStart){
-        if(serviceIntent != null){
-            if(!flStartStop) startMqttService() ;
-            else stopMqttService()              ;
-            flStartStop ^= true                 ;
-            btnStart.setText(flStartStop ? "СТОП" : "СТАРТ")    ;}
-    }
+        btnStart.setText(flStartStop ? "СТОП" : "СТАРТ")    ;
+        flStartStop ^= true                                 ;
+        saveSettings()  ;
 
+        Intent broadcastIntent = new Intent("TO_MAIN")      ;// Отправка данных в активность
+        broadcastIntent.putExtra("start_stop",flStartStop ? "start" : "stop")  ;
+        sendBroadcast(broadcastIntent)                      ;
+    }
     //---------------------------------------------------------------
     private void addDevice(String devPfx) {
         Intent broadcastIntent = new Intent("TO_MAIN")      ;// Отправка данных в активность
@@ -183,6 +183,7 @@ public class SettingsActivity extends AppCompatActivity
                 .putString("SEL_RINGTONE",strSound)
                 .putString("LIST_PING"  , strListPing)
                 .putString("LIST_PFX"   , strListPfx)
+                .putBoolean("START"     , flStartStop)
                 .apply();
     }
     //---------------------------------------------------------------
@@ -191,6 +192,7 @@ public class SettingsActivity extends AppCompatActivity
         SharedPreferences prefs = getSharedPreferences("MQTT_SETTINGS", MODE_PRIVATE);
         String serverAddress = prefs.getString("SRV_ADDRESS", "")       ;
         int port            = prefs.getInt   ("PORT"        , 0 )       ; // 1883 - стандартный порт MQTT
+        flStartStop         = prefs.getBoolean("START"      ,false)     ;
         String login        = prefs.getString("LOGIN"       , "")       ;
         String password     = prefs.getString("PASSWORD"    , "")       ;
         String topicName    = prefs.getString("TOPIC_NAME"  , "")       ;
@@ -210,26 +212,26 @@ public class SettingsActivity extends AppCompatActivity
     }
     //---------------------------------------------------------------
     // Запуск сервиса
-    private void startMqttService() {
-        saveSettings()  ;
-        serviceIntent.putExtra("SERVER_ADDRESS" , curAccount.getServer());
-        serviceIntent.putExtra("PORT"           , Integer.parseInt(curAccount.getPort()));
-        serviceIntent.putExtra("LOGIN"          , curAccount.getLogin());
-        serviceIntent.putExtra("PASSWORD"       , curAccount.getPassword());
-        serviceIntent.putExtra("TOPIC_NAME"     , etDevPfx.getText().toString());
-        serviceIntent.putExtra("CODE_WORD"      , etCodeWord.getText().toString());
-        serviceIntent.putExtra("USER_UID"       , tvUID.getText().toString());
-        serviceIntent.putExtra("SEL_RINGTONE"   , strSound);
-        startService(serviceIntent) ;
-        Toast.makeText(SettingsActivity.this, "Сервис запущен", Toast.LENGTH_SHORT).show();
-    }
+//    private void startMqttService() {
+//        saveSettings()  ;
+//        serviceIntent.putExtra("SERVER_ADDRESS" , curAccount.getServer());
+//        serviceIntent.putExtra("PORT"           , Integer.parseInt(curAccount.getPort()));
+//        serviceIntent.putExtra("LOGIN"          , curAccount.getLogin());
+//        serviceIntent.putExtra("PASSWORD"       , curAccount.getPassword());
+//        serviceIntent.putExtra("TOPIC_NAME"     , etDevPfx.getText().toString());
+//        serviceIntent.putExtra("CODE_WORD"      , etCodeWord.getText().toString());
+//        serviceIntent.putExtra("USER_UID"       , tvUID.getText().toString());
+//        serviceIntent.putExtra("SEL_RINGTONE"   , strSound);
+//        startService(serviceIntent) ;
+//        Toast.makeText(SettingsActivity.this, "Сервис запущен", Toast.LENGTH_SHORT).show();
+//    }
     //---------------------------------------------------------------
     // Остановка сервиса
-    private void stopMqttService() {
-        if(serviceIntent != null){
-            stopService(serviceIntent);
-            Toast.makeText(SettingsActivity.this, "Сервис остановлен", Toast.LENGTH_SHORT).show();}
-    }
+//    private void stopMqttService() {
+//        if(serviceIntent != null){
+//            stopService(serviceIntent);
+//            Toast.makeText(SettingsActivity.this, "Сервис остановлен", Toast.LENGTH_SHORT).show();}
+//    }
     //---------------------------------------------------------------
     @Override
     public void onAccountSelected(Account _account) {

@@ -3,21 +3,39 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
     <item
+        android:id="@+id/action_cancel"
+        android:icon="@drawable/chevron_left"
+        android:title="Отменить"
+        android:visible="false"
+        app:showAsAction="always"/>
+    <item
+        android:id="@+id/action_rfrsh"
+        android:icon="@drawable/sync"
+        android:title="Обновить"
+        app:showAsAction="always"/>
+    <item
         android:id="@+id/action_settings"
         android:icon="@drawable/gear"
         android:title="Настройки"
-        app:showAsAction="ifRoom"/>
+        app:showAsAction="always"/>
+    <item
+        android:id="@+id/action_menu"
+        android:icon="@drawable/bars"
+        android:title="Меню"
+        android:visible="false"
+        app:showAsAction="always">
+        <menu>
+            <item
+                android:id="@+id/sub_item1"
+                android:title="Подпункт 1"/>
+
+            <item
+                android:id="@+id/sub_item2"
+                android:title="Подпункт 2"/>
+
+            <item
+                android:id="@+id/sub_item3"
+                android:title="Подпункт 3"/>
+        </menu>
+    </item>
 </menu>
-
-    <!--    <item-->
-    <!--        android:id="@+id/action_help"-->
-    <!--        android:title="Помощь"-->
-    <!--        app:showAsAction="never"/>-->
-
-    <!--    <item-->
-    <!--        android:id="@+id/action_search"-->
-    <!--        android:title="Поиск"-->
-    <!--        app:showAsAction="never"/>-->
-
-<!--    android:icon="@drawable/ic_settings"-->
-<!--    android:icon="@drawable/ic_search"-->

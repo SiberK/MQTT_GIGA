@@ -14,9 +14,9 @@
     <color name="text_primary">#FFFFFF</color>
     <color name="text_disabled">#9E9E9E</color>
     <!-- Основные цвета -->
-    <color name="colorPrimary">#EFB9EE</color>
+    <color name="colorPrimary">#F0F0F0</color>
     <color name="colorPrimaryDark">#739B68</color>
-    <color name="colorSecDark">#B386BC</color>
+    <color name="colorSecDark">#A0A0A0</color>
 
     <!-- Цвета для отключенного состояния -->
     <color name="disabled_color">#E0E0E0</color>

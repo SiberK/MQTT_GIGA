@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
@@ -18,71 +19,129 @@ import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
-import android.widget.ImageButton;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
 import android.widget.Toast;
-
+import androidx.appcompat.widget.Toolbar;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.drawable.DrawableCompat;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentTransaction;
 
 import com.example.mqtt_giga.DeviceManager.Device;
 import com.example.mqtt_giga.MqttWork.Message;
+import static com.example.mqtt_giga.MqttWork.noEmpty;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.List;
 
-import static com.google.android.material.internal.ViewUtils.dpToPx;
+import gson_parser.DynamicFormFragment;
 
 //---------------------------------------------------------------
 public class MainActivity extends AppCompatActivity{
     private static final String TAG = "MAIN";
-    private SettingsActivity settingsActivity   ;
-    private DeviceManager devManager            ;
-    private Device curDevice         			;
+//    private SettingsActivity 	settingsActivity   ;
+    private DeviceManager 		devManager      	;
+    private Device 				curDevice  			;
+//    private String 				StrTopic     	;
+//    private String 				StrMessage   	;
+//    private String            	StrDevice   	;
+  	private TableLayout 		btnContainer		;
+	private DynamicFormFragment faceContainer		;
+  	private String 				mqttUid	= ""		;
+	private String				currDevUid = ""		;
+	private String				currDevPfx = ""		;
+	private String				currDevName= ""		;
+	private static MainActivity	Instance = null		;
+  	private boolean 			flStartMqtt = false	;
+  	private Intent 				serviceIntent		;
+	private TextView 			titleTextView = null;
+	private MenuItem			miSettings			;
+  	private MenuItem			miCancel			;
+	private MenuItem			miMenu				;
+  	private MenuItem			miRfrsh				;
 
-    private String StrTopic     ;
-    private String StrMessage   ;
-    private       String            StrDevice    ;
-    //---------------------------------------------------------------
-	@SuppressLint("UnspecifiedRegisterReceiverFlag")
+  //---------------------------------------------------------------
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
-	  super.onCreate(savedInstanceState)          ;
-	  setContentView(R.layout.activity_main)      ;
+	  Instance = this								;
+	  super.onCreate(savedInstanceState)          	;
+	  setContentView(R.layout.activity_main)      	;
+	  receiverRegister()							;// Регистрация ресивера
 
-	  // Регистрация ресивера
-	  IntentFilter filter = new IntentFilter()    ;
-	  filter.addAction("FROM_MQTT_SERVICE")       ;// Уникальное действие
-	  filter.addAction("TO_MAIN")                 ;// Уникальное действие
+	  devManager = new DeviceManager(this)        	;
+	  btnContainer = findViewById(R.id.contButtons)	;
+	  faceContainer= DynamicFormFragment.newInstance()		;
 
-	  // Регистрация ресивера
-	  if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU)
-		registerReceiver(receiver, filter)		                ;
-	  else registerReceiver(receiver, filter,RECEIVER_NOT_EXPORTED);
+	  FrameLayout     	  layF            = findViewById(R.id.contFace)			;
+	  FragmentManager     fragmentManager = getSupportFragmentManager()			;
+	  FragmentTransaction transaction     = fragmentManager.beginTransaction()	;
+	  transaction.replace(layF.getId(),faceContainer);// Добавляем фрагмент в контейнер
+	  transaction.commit()							;// Фиксируем изменения
+	  createDeviceMatButtons()						;
 
-	  devManager = new DeviceManager(this)        ;
-	  createDeviceMatButtons()					;
+	  SharedPreferences prefs = getSharedPreferences("MQTT_SETTINGS", MODE_PRIVATE);
+	  flStartMqtt       = prefs.getBoolean("START"      ,false)     	;
+	  serviceIntent = new Intent(this, MQTTService.class)				;
+	  startStopServiceMqtt(flStartMqtt)		;
 	}
+  //=====================================================================
+  private void startStopServiceMqtt(boolean flStart){
+	if(serviceIntent != null){
+	  if(flStart){	startService(serviceIntent) 	; Log.i(TAG,"Сервис старт")		;
+					Toast.makeText(this, "Сервис старт", Toast.LENGTH_SHORT).show()	;}
+	  else{			stopService(serviceIntent)		; Log.i(TAG,"Сервис стоп")		;
+					Toast.makeText(this, "Сервис стоп", Toast.LENGTH_SHORT).show()	;}
+	}
+  }
+  //=====================================================================
+  private void onClickRst(){
+	if(faceContainer != null) faceContainer.removeAllViews()	; currDevPfx = ""	;
+	createDeviceMatButtons()									;
+	if(miCancel != null) miCancel.setVisible(false)				;
+	if(miMenu   != null) miMenu  .setVisible(false)				;
+	setTitle("")	;
+  }
+  private void onClickBuild(){// это для теста
+	if(btnContainer != null)	btnContainer.removeAllViews()		; // Очистка предыдущих кнопок
+	if(faceContainer != null)	faceContainer.buildFace(strTest1)	;}
+  private void onClickUpdate(){// это для теста
+	if(btnContainer != null)	btnContainer.removeAllViews()		; // Очистка предыдущих кнопок
+	if(faceContainer != null) 	faceContainer.updateFace(strUpdate)	;}
+//=====================================================================
+  @SuppressLint("UnspecifiedRegisterReceiverFlag")
+  private void receiverRegister(){
+
+	IntentFilter filter = new IntentFilter()    	;
+	filter.addAction("FROM_MQTT_SERVICE")       	;// Уникальное действие
+	filter.addAction("TO_MAIN")                 	;// Уникальное действие
+
+	// Регистрация ресивера
+	if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU)
+	  registerReceiver(receiver, filter)		                ;
+	else registerReceiver(receiver, filter,RECEIVER_EXPORTED);
+  }
   //---------------------------------------------------------------
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, @NonNull Intent intent) {
             messageParse(intent.getStringExtra("topic"),intent.getStringExtra("message"))   ;
             addDevice(intent.getStringExtra("device"))      ;
-//            textView = findViewById(R.id.tvStat)          ; textView.setText(intent.getStringExtra("state"));
-//            textView = findViewById(R.id.tvAlarm)         ; textView.setText("Alarm: " + intent.getStringExtra("alarm"));
-//            if(intent.getStringExtra("user_uid") !=null) { tvUID.setText(intent.getStringExtra("user_uid"))  ;}
+			setMqttUid(intent.getStringExtra("user_uid"))	;
+
+		    String onOff = intent.getStringExtra("start_stop")	;
+			if(noEmpty(onOff)){ flStartMqtt = onOff.equals("start")	;
+				startStopServiceMqtt(flStartMqtt)				;}
         }
     };
-    //---------------------------------------------------------------
+//=====================================================================
     private void messageParse(String topic, String message) {
         if(topic != null && message != null){
 		    boolean flRe = false	;// сохранить список устройств
@@ -100,6 +159,24 @@ public class MainActivity extends AppCompatActivity{
 				  btn = findViewById(dvc.getBtnId())			;}
 				if(btn != null) btn.setText(devName)			;
 			  break	;
+
+			  case ui :
+				if(!msg.getMsg().isEmpty() && msg.getDstUid().equals(mqttUid)){
+				  currDevUid = msg.getSrcUid()	; currDevPfx = msg.getDevPfx()		;
+				  curDevice  = devManager.findByPfx(currDevPfx)						;
+				  currDevName =curDevice != null ? curDevice.getNamePfx() : ""		;
+				  setTitle(currDevName)												;
+				  if(miCancel != null) miCancel.setVisible(true)					;
+				  if(miMenu   != null) miMenu.setVisible(true)						;
+				  if(btnContainer != null)	btnContainer.removeAllViews()			; // Очистка предыдущих кнопок
+				  if(faceContainer != null)	faceContainer.buildFace(msg.getMsg())	;}
+			  break	;
+
+			  case update:
+				if(!msg.getMsg().isEmpty() && msg.getDevPfx().equals(currDevPfx)){
+				  if(btnContainer != null)	btnContainer.removeAllViews()			; // Очистка предыдущих кнопок
+				  if(faceContainer != null) faceContainer.updateFace(msg.getMsg())	;}
+			  break	;
 			}
 
 			if(flRe){		// была дополнена информация по устройству?
@@ -108,6 +185,10 @@ public class MainActivity extends AppCompatActivity{
         }
     }
   //---------------------------------------------------------------
+  public static String getCurrDevUid(){return Instance == null ? "" : Instance.currDevUid	;}
+  public static String getCurrDevPfx(){return Instance == null ? "" : Instance.currDevPfx	;}
+  //---------------------------------------------------------------
+  private void setMqttUid(String val){if(noEmpty(val)) mqttUid = val	;}
   private void fillListPing(){
 	Intent broadcastIntent = new Intent("TO_MQTT_SERVICE") 		;// Отправка данных в активность
 	broadcastIntent.putExtra("fill_list_ping","fill_list_ping")   ;
@@ -130,7 +211,8 @@ public class MainActivity extends AppCompatActivity{
   //---------------------------------------------------------------
     private void findDevice(String pfx) {
         Intent broadcastIntent = new Intent("TO_MQTT_SERVICE") ;// Отправка данных в активность
-        broadcastIntent.putExtra("find",pfx)    ;
+	  	broadcastIntent.putExtra("type_msg","find")    ;
+	  	broadcastIntent.putExtra("prefix",pfx) 	;
         sendBroadcast(broadcastIntent)          ;}
     //---------------------------------------------------------------
     private void subscribeTo(String pfx) {
@@ -143,13 +225,12 @@ public class MainActivity extends AppCompatActivity{
 	TableRow       	row = null	;
 	Device 			device		;
 	String			ttl			;
-	TableLayout cont = findViewById(R.id.cont)				;
 
 	List<Device> devices = DeviceManager.getDeviceList()	;
-	if(cont == null || devices == null || devices.size() == 0){
-	  Log.e(TAG, "GridLayout или список устройств равен null");
-	  return	;}
-	cont.removeAllViews()										; // Очистка предыдущих кнопок
+	if(btnContainer == null || devices == null || devices.size() == 0){
+	  Log.e(TAG, "GridLayout или список устройств равен null"); return	;}
+
+	btnContainer.removeAllViews()							; // Очистка предыдущих кнопок
 
 	TableRow.LayoutParams params = new TableRow.LayoutParams(TableRow.LayoutParams.MATCH_PARENT,
 															 TableRow.LayoutParams.WRAP_CONTENT,1.0f);
@@ -157,7 +238,7 @@ public class MainActivity extends AppCompatActivity{
 
 	for (int i = 0; i < devices.size(); i++) {
 	  if(i % 2 == 0){ row = new TableRow(this)				;
-		cont.addView(row)						;}
+		btnContainer.addView(row)							;}
 
 	  device = devices.get(i)	; if(device == null) break	;
 
@@ -170,9 +251,8 @@ public class MainActivity extends AppCompatActivity{
 	  if(btn != null) row.addView(btn,params)				;
 	}
 	if(devices.size() % 2 != 0 && row != null){
-	  View spacer = new View(this)			;
-	  row.addView(spacer,params)			;
-	}
+	  View spacer = new View(this)							;
+	  row.addView(spacer,params)							;}
   }
   //----------------------------------------------------------------------------
   private MaterialButton createMatButton(String ttl, int btnId, Device device){
@@ -254,30 +334,35 @@ private void onDeviceClicked(Device device) {
   Toast.makeText(this, "Выбрано: " + device.getPrefix(), Toast.LENGTH_SHORT).show();
 
   Intent broadcastIntent = new Intent("TO_MQTT_SERVICE") 	;// Отправка данных в активность
-  broadcastIntent.putExtra("prefix",device.getPrefix())		;
-  broadcastIntent.putExtra("type_msg","find")    			;
-  broadcastIntent.putExtra("dev_uid" ,device.getUID())   	;
+  broadcastIntent.putExtra("prefix" ,device.getPrefix())	;
+  broadcastIntent.putExtra("dev_uid",device.getUID())   	;
+  broadcastIntent.putExtra("type_msg","get_ui") 			;
   sendBroadcast(broadcastIntent)          					;
 }
   //---------------------------------------------------------------
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        MenuInflater inflater = getMenuInflater();
-        inflater.inflate(R.menu.main_menu, menu);
+        MenuInflater inflater = getMenuInflater()			;
+        inflater.inflate(R.menu.main_menu, menu)			;
 
         // Получаем ColorStateList
         ColorStateList colorStateList = ContextCompat.getColorStateList(this, R.color.icon_color_selector);
 
         // Применяем к каждой иконке
         for (int i = 0; i < menu.size(); i++) {
-            MenuItem item = menu.getItem(i);
-            Drawable icon = item.getIcon();
+            MenuItem item = menu.getItem(i)			;
+            Drawable icon = item.getIcon()			;
             if (icon != null) {
-                icon = DrawableCompat.wrap(icon);
+                icon = DrawableCompat.wrap(icon)	;
                 DrawableCompat.setTintList(icon, colorStateList);
-                item.setIcon(icon);
+                item.setIcon(icon)					;
             }
-        }
+		  if(item.getItemId() == R.id.action_settings) miSettings = item	;
+		  if(item.getItemId() == R.id.action_cancel  ) miCancel   = item	;
+		  if(item.getItemId() == R.id.action_rfrsh   ) miRfrsh    = item	;
+		  if(item.getItemId() == R.id.action_menu    ) miMenu     = item	;
+		  if(miCancel != null) miCancel.setVisible(false)	; setTitle("")	;
+		}
         return true;
     }
     //---------------------------------------------------------------
@@ -286,20 +371,20 @@ private void onDeviceClicked(Device device) {
         boolean rzlt = super.onOptionsItemSelected(item);
         // Обработка нажатий на пункты меню
         if(item.getItemId() == R.id.action_settings){
-//            Toast.makeText(this, "action_settings", Toast.LENGTH_SHORT).show();
             Intent intent = new Intent(this, SettingsActivity.class) ;
             startActivity(intent)   ;
-            rzlt = true   ;
+            rzlt = true   			;
         }
-//        else if(item.getItemId() == R.id.action_search){
-//            Toast.makeText(this, "action_search", Toast.LENGTH_SHORT).show();
-//            rzlt = true   ;
-//        }
-//        else if(item.getItemId() == R.id.action_help){
-//            Toast.makeText(this, "action_help", Toast.LENGTH_SHORT).show();
-//            rzlt = true   ;
-//        }
+        else if(item.getItemId() == R.id.action_cancel){
+		  	onClickRst()			;
+            rzlt = true   			;
+        }
+        else if(item.getItemId() == R.id.action_rfrsh){
+            rzlt = true   			;
+        }
     return rzlt ;
     }
     //---------------------------------------------------------------
+	private final String strTest1 = "{\"id\":\"a470ab51\",\"type\":\"ui\",\"controls\":[{\"id\":\"_menu\",\"type\":\"menu\",\"value\":\"0\",\"text\":\"КОТЁЛ\"},{\"type\":\"row\",\"wwidth\":1,\"data\":[{\"id\":\"_n1\",\"type\":\"title\",\"value\":\"Теплоноситель\",\"fsize\":30,\"wwidth\":4,\"align\":0},{\"id\":\"t_rssi\",\"type\":\"label\",\"label\":\"5.0.07\",\"wwidth\":1,\"fsize\":16,\"color\":3199024,\"notab\":1,\"align\":2,\"value\":\"-46dBm\"}]},{\"type\":\"row\",\"wwidth\":1,\"data\":[{\"type\":\"col\",\"wwidth\":1,\"data\":[{\"type\":\"row\",\"wwidth\":1,\"data\":[{\"id\":\"_n2\",\"type\":\"label\",\"value\":\"ВЫХОД\",\"nolabel\":1,\"wwidth\":1,\"fsize\":20,\"notab\":1},{\"id\":\"t_out\",\"type\":\"label\",\"nolabel\":1,\"wwidth\":1,\"fsize\":30,\"color\":13314105,\"value\":\"35°C\"}]},{\"type\":\"row\",\"wwidth\":1,\"data\":[{\"id\":\"_n3\",\"type\":\"label\",\"value\":\"ВХОД\",\"label\":\"обратка\",\"wwidth\":1,\"fsize\":20,\"notab\":1},{\"id\":\"t_in\",\"type\":\"label\",\"nolabel\":1,\"wwidth\":1,\"fsize\":30,\"color\":2718669,\"value\":\"28°C\"}]}]},{\"type\":\"col\",\"wwidth\":1,\"data\":[{\"type\":\"row\",\"wwidth\":1,\"data\":[{\"id\":\"_n4\",\"type\":\"label\",\"value\":\"УСТАВКА\",\"nolabel\":1,\"wwidth\":1,\"fsize\":20,\"notab\":1},{\"id\":\"t_trg\",\"type\":\"label\",\"nolabel\":1,\"wwidth\":1,\"fsize\":30,\"color\":3647804,\"value\":\"58°C\"}]},{\"type\":\"row\",\"wwidth\":1,\"data\":[{\"id\":\"_n5\",\"type\":\"label\",\"value\":\"\",\"nolabel\":1,\"wwidth\":2,\"fsize\":20,\"notab\":1},{\"id\":\"_n6\",\"type\":\"button\",\"nolabel\":1,\"wwidth\":1,\"fsize\":40,\"icon\":\"f151\"},{\"id\":\"_n7\",\"type\":\"button\",\"nolabel\":1,\"wwidth\":1,\"fsize\":40,\"icon\":\"f150\"}]}]}]},{\"id\":\"_n8\",\"type\":\"title\",\"value\":\"Режим работы\",\"fsize\":30,\"align\":0},{\"type\":\"row\",\"wwidth\":1\n" + ",\"data\":[{\"id\":\"slc_m\",\"type\":\"select\",\"value\":\"1\",\"text\":\"M1;M2;M3;M4\",\"nolabel\":1,\"wwidth\":1,\"fsize\":35,\"value\":2},{\"id\":\"rgm_1\",\"type\":\"label\",\"nolabel\":1,\"wwidth\":1,\"fsize\":30,\"color\":3647804,\"value\":1},{\"id\":\"rgm_2\",\"type\":\"label\",\"nolabel\":1,\"wwidth\":1,\"fsize\":30,\"color\":13158600,\"value\":2}]},{\"type\":\"row\",\"wwidth\":1,\"data\":[{\"id\":\"w_ttl\",\"type\":\"title\",\"value\":\"Работа\",\"wwidth\":2,\"fsize\":30,\"align\":0},{\"id\":\"_n9\",\"type\":\"label\",\"value\":\"STOP\",\"nolabel\":1,\"wwidth\":2,\"fsize\":20,\"notab\":1,\"align\":2},{\"id\":\"sw_onoff\",\"type\":\"switch_t\",\"value\":\"0\",\"nolabel\":1,\"wwidth\":1},{\"id\":\"_n10\",\"type\":\"label\",\"value\":\"START\",\"nolabel\":1,\"wwidth\":2,\"fsize\":20,\"notab\":1,\"align\":0}]},{\"type\":\"row\",\"wwidth\":1,\"data\":[{\"id\":\"r_fan\",\"type\":\"label\",\"nolabel\":1,\"wwidth\":1,\"fsize\":20,\"icon\":\"f863\",\"color\":13129882,\"value\":\"0%\"},{\"id\":\"r_fdr\",\"type\":\"label\",\"nolabel\":1,\"wwidth\":1,\"fsize\":20,\"icon\":\"f159\",\"color\":13129882,\"value\":\"\"},{\"id\":\"r_mll\",\"type\":\"label\",\"nolabel\":1,\"wwidth\":1,\"fsize\":20,\"icon\":\"f159\",\"color\":13129882,\"value\":\"\"}]},{\"id\":\"_n11\",\"type\":\"title\",\"value\":\"Ручное управление\",\"fsize\":30,\"align\":0},{\"type\":\"row\",\"wwidth\":1,\"data\":[{\"id\":\"btn_fan_up\",\"type\":\"button\",\"nolabel\":1,\"wwidth\":1,\"fsize\":40,\"icon\":\"f151\",\"color\":3647804},{\"id\":\"btn_fdr_up\",\"type\":\"button\",\"nolabel\":1,\"wwidth\":1,\"fsize\":40,\"icon\":\"f151\",\"color\":3647804},{\"id\":\"btn_mll_up\",\"type\":\"button\",\"nolabel\":1,\"wwidth\":1,\"fsize\":40,\"icon\":\"f151\",\"color\":3647804}]},{\"type\":\"row\",\"wwidth\":1,\"data\":[{\"id\":\"_n12\",\"type\":\"label\",\"value\":\"Поддув\"\n" + ",\"nolabel\":1,\"wwidth\":1,\"wheight\":20,\"fsize\":17,\"notab\":1,\"align\":0},{\"id\":\"_n13\",\"type\":\"label\",\"value\":\"Шнек\",\"nolabel\":1,\"wwidth\":1,\"wheight\":20,\"fsize\":17,\"notab\":1,\"align\":0},{\"id\":\"_n14\",\"type\":\"label\",\"value\":\"Питатель\",\"nolabel\":1,\"wwidth\":1,\"wheight\":20,\"fsize\":17,\"notab\":1,\"align\":0}]},{\"type\":\"row\",\"wwidth\":1,\"data\":[{\"id\":\"btn_fan_dn\",\"type\":\"button\",\"nolabel\":1,\"wwidth\":1,\"fsize\":40,\"icon\":\"f150\",\"color\":3647804},{\"id\":\"btn_fdr_dn\",\"type\":\"button\",\"nolabel\":1,\"wwidth\":1,\"fsize\":40,\"icon\":\"f150\",\"color\":3647804},{\"id\":\"btn_mll_dn\",\"type\":\"button\",\"nolabel\":1,\"wwidth\":1,\"fsize\":40,\"icon\":\"f150\",\"color\":3647804}]}]}";
+	private final String strUpdate = "{\"updates\":{\"alarm\":{\"value\":\"0\"},\"t_in\":{\"value\":\"ОШБК\"},\"t_out\":{\"value\":\"ОШБК\"},\"t_trg\":{\"value\":\"56°C\"},\"rgm_1\":{\"color\":3647804},\"rgm_2\":{\"color\":13158600},\"r_fan\":{\"color\":13129882,\"value\":\"0%\"},\"r_fdr\":{\"color\":13129882,\"value\":\"\"},\"r_mll\":{\"color\":13129882,\"value\":\"\"},\"m_fdr\":{\"color\":13129882},\"m_mll\":{\"color\":13129882},\"w_ttl\":{\"value\":\"Обрыв шлейфа\"},\"sw_onoff\":{\"value\":1},\"slc_m\":{\"value\":0},\"t_rssi\":{\"color\":3199024,\"value\":\"-43dBm\"},\"b_fan10\":{\"color\":13158600},\"btn_fan_up\":{\"color\":3647804},\"btn_fan_dn\":{\"color\":13158600},\"btn_fdr_up\":{\"color\":3647804,\"icon\":\"f152\"},\"btn_fdr_dn\":{\"color\":3647804,\"icon\":\"f153\"},\"btn_mll_up\":{\"color\":3647804,\"icon\":\"f151\"},\"btn_mll_dn\":{\"color\":3647804,\"icon\":\"f150\"}},\"id\":\"a470ab51\",\"type\":\"update\"}";
 }
