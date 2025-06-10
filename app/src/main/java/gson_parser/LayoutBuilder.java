@@ -59,47 +59,48 @@ public class LayoutBuilder{
 			  deserializer);
 	  Gson        gson        = gsonBuilder.create();
 	  UiElement   root        = gson.fromJson(json, UiElement.class);
-	  parseElement(root, container);
+	  parseElement(root, container,LinearLayout.VERTICAL);
 	} catch(JsonSyntaxException | IllegalArgumentException e){
 	  Log.w(TAG, "JsonSyntaxException ", e);
 	}
   }
-  private void parseElement(UiElement element, ViewGroup parent){
+  private void parseElement(UiElement element, ViewGroup parent,int parentOrientation){
 	int viewId = parent.generateViewId()	;
 	if(element instanceof FrameElement){
 	  FrameElement frame  = (FrameElement) element;
-	  LinearLayout layout = frame.createView(context,viewId,fontAwesome);
+	  LinearLayout layout = frame.createView(context,viewId,parentOrientation,fontAwesome);
 	  parent.addView(layout);
+	  parentOrientation = frame.getOrientation()	;
 
 	  List<UiElement> children = frame.getChildren();
 	  if(children != null){
 		for(UiElement child : children)
-		  parseElement(child, layout);
+		  parseElement(child, layout,parentOrientation);
 	  }
 	}
 
 	else if(element instanceof LabelElement){
-	  TextView tv = ((LabelElement) element).createView(context,viewId, fontAwesome);
+	  TextView tv = ((LabelElement) element).createView(context,viewId,parentOrientation, fontAwesome);
 	  parent.addView(tv);
 	  uiElements.add(element);
 	}
 
 	else if(element instanceof ButtonElement){
-	  	MaterialButton btn = ((ButtonElement) element).createView(context,viewId, fontAwesome);
+	  	MaterialButton btn = ((ButtonElement) element).createView(context,viewId,parentOrientation, fontAwesome);
 	  	btn.setOnClickListener(v->onButtonClicked(btn));
 	  	parent.addView(btn);
 	  	uiElements.add(element);
 	}
 
 	else if(element instanceof SwitchElement){
-		Switch sw = ((SwitchElement) element).createView(context,viewId, fontAwesome);
+		Switch sw = ((SwitchElement) element).createView(context,viewId,parentOrientation, fontAwesome);
 		sw.setOnClickListener(v->onSwitchClicked(sw));
 		parent.addView(sw);
 		uiElements.add(element);
 	}
 
 	else if(element instanceof SelectElement){
-		Spinner sp = ((SelectElement) element).createView(context,viewId, fontAwesome);
+		Spinner sp = ((SelectElement) element).createView(context,viewId,parentOrientation, fontAwesome);
 		sp.setOnTouchListener((v,event)->{
 		  if(event.getAction() == MotionEvent.ACTION_UP){flTouch = true	;} return false	;});
 		sp.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener(){

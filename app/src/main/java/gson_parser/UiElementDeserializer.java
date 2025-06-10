@@ -3,6 +3,7 @@ package gson_parser;
 import android.content.Context;
 import android.graphics.Typeface;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
@@ -10,6 +11,8 @@ import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
+
+import androidx.core.content.ContextCompat;
 
 import com.example.mqtt_giga.R;
 import com.google.android.material.button.MaterialButton;
@@ -78,15 +81,16 @@ public class UiElementDeserializer implements JsonDeserializer<UiElement>{
 	public int getOrientation() { return type.equals("row") ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL;}
 	public List<UiElement> getChildren() { return data != null ? data : controls; }
 
-	public LinearLayout createView(Context context,int viewId, Typeface fontAwesome){
-	  LinearLayout ly = new LinearLayout(context)   ;
-	  ly.setId(idView = viewId)                   ;
-	  ly.setOrientation(getOrientation())           ;
-//    ly.setPadding(2,2,2,2)                        ;
-	  LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-			  ViewGroup.LayoutParams.MATCH_PARENT,
-			  ViewGroup.LayoutParams.WRAP_CONTENT,
-			  wwidth > 0 ? 1.0f/wwidth : 1.0f)        ;
+	public LinearLayout createView(Context context,int viewId,int parentOrientation, Typeface fontAwesome){
+	  float wgt = wwidth > 0 ? 1.0f/wwidth : 1.0f		;
+	  int   wdth= ViewGroup.LayoutParams.MATCH_PARENT	;
+	  int   hgt = ViewGroup.LayoutParams.WRAP_CONTENT	;
+	  if(parentOrientation == LinearLayout.HORIZONTAL){ wgt = wwidth > 0 ? wwidth : 1	; wdth = 0	;}
+	  LinearLayout ly = new LinearLayout(context)   	;
+	  ly.setId(idView = viewId)                   		;
+	  ly.setOrientation(getOrientation())           	;
+//	  ly.setPadding(2,2,2,2)                        	;
+	  LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(wdth,hgt,wgt)        ;
 //	lp.setMargins(4,4,4,4);
 	  ly.setLayoutParams(lp);
 	  return ly;
@@ -94,11 +98,13 @@ public class UiElementDeserializer implements JsonDeserializer<UiElement>{
   }
   //====================================================================================
   public class LabelElement extends UiElement {
-	public TextView createView(Context context,int viewId, Typeface fontAwesome){
+	public TextView createView(Context context,int viewId,int parentOrientation, Typeface fontAwesome){
 	  int al = getAlign()   ;
 	  int fz = getFsize()   ;
 	  TextView tv = new TextView(context);
 	  tv.setId(idView = viewId);
+	  tv.setTag(getId())  	;
+   	  tv.setLayoutParams(getLayoutParams(parentOrientation))  ;
 	  int clr = getColorF() ;
 	  if (clr != 0xFF000000) tv.setTextColor(clr);
 	  if(fz > 0) tv.setTextSize(fz) ;
@@ -106,6 +112,8 @@ public class UiElementDeserializer implements JsonDeserializer<UiElement>{
 				   al == 1 ? TextView.TEXT_ALIGNMENT_CENTER     :
 				   al == 2 ? TextView.TEXT_ALIGNMENT_VIEW_END   : TextView.TEXT_ALIGNMENT_CENTER  ;
 	  tv.setTextAlignment(algmnt)   ;
+	  tv.setSingleLine()			;
+
 	  if(fontAwesome != null && icon != null){
 		String str = getIcChar()            ;
 		if(!getValue().isEmpty()) str += "  " + getValue()      ;
@@ -116,13 +124,12 @@ public class UiElementDeserializer implements JsonDeserializer<UiElement>{
 	  if(notab == 0 && type.equals("label")){
 	    tv.setBackgroundResource(R.drawable.btn_device_bg)	;}
 	  if(type.equals("menu")) tv.setVisibility(View.GONE)	;
-	  tv.setLayoutParams(getLayoutParams()) ;
 	  return tv ;
 	}
   }
   //====================================================================================
   public class ButtonElement extends UiElement {
-    public MaterialButton createView(Context context,int viewId, Typeface fontAwesome){
+    public MaterialButton createView(Context context,int viewId,int parentOrientation, Typeface fontAwesome){
       MaterialButton btn = new MaterialButton(context,null, R.style.DeviceButtonStyle);
       int fz = getFsize()   	;
       int al = getAlign()   	;
@@ -130,10 +137,12 @@ public class UiElementDeserializer implements JsonDeserializer<UiElement>{
       btn.setId(idView = viewId);
       btn.setText(getText())	;
       btn.setTag(getId())  	    ;
+	  btn.setLayoutParams(getLayoutParams(parentOrientation))  ;
       btn.setTextSize(fz > 0 ? fz : 26) ;
       btn.setAllCaps(false)		;
       btn.setPadding(0,4,0,4)	;
       btn.setTextAlignment(MaterialButton.TEXT_ALIGNMENT_CENTER);
+	  btn.setSingleLine()		;
 
       int clr = getColorF()      ;
       if(clr == 0xFF000000) clr = DEF_COLOR   ;
@@ -144,29 +153,30 @@ public class UiElementDeserializer implements JsonDeserializer<UiElement>{
       if(fontAwesome != null && !getIcon().isEmpty()){
         btn.setTypeface(fontAwesome)                        ;
         btn.setText(getIcChar())                            ;}
-      btn.setLayoutParams(getLayoutParams())  ;
       return btn;
     }
   }
   //====================================================================================
   public class SwitchElement extends UiElement {
-    public Switch createView(Context context,int viewId,Typeface fontAwesome){
+    public Switch createView(Context context,int viewId,int parentOrientation,Typeface fontAwesome){
       Switch sw = new Switch(context)               ;
       sw.setId(idView = viewId);
+	  sw.setLayoutParams(getLayoutParams(parentOrientation))        ;
       sw.setText(getText())                         ;
       sw.setTag(getId())  	                        ;
       sw.setTextSize(fsize > 0 ? fsize : 26)        ;
       sw.setChecked(getValue().equals("1"))         ;
-
-      sw.setLayoutParams(getLayoutParams())         ;
+	  sw.setPadding(0,4,0,4)	;
+	  if(notab == 0) sw.setBackgroundResource(R.drawable.btn_device_bg)	;
       return sw;
     }
   }
   //====================================================================================
   public class SelectElement extends UiElement {
-	public Spinner createView(Context context,int viewId, Typeface fontAwesome){
+	public Spinner createView(Context context,int viewId,int parentOrientation, Typeface fontAwesome){
 	  Spinner sp = new Spinner(context)           ;
 	  sp.setId(idView = viewId)                   ;
+	  sp.setLayoutParams(getLayoutParams(parentOrientation))	  ;
 	  String items[] = !getText().isEmpty() ?  getText().split(";") : new String[0]   ;
 	  ArrayAdapter<String> adapter = new ArrayAdapter<String>(context, R.layout.custom_spinner_item, items) {
 		@Override
@@ -176,13 +186,15 @@ public class UiElementDeserializer implements JsonDeserializer<UiElement>{
 		  view.setTextColor(clr)                  ;
 		  view.setTextSize(getFsize())            ;
 		  view.setLayoutParams(getLayoutParams()) ;
+		  view.setGravity(Gravity.CENTER)		  ;
 		  return view;}
 		@Override
 		public View getDropDownView(int position, View convertView, ViewGroup parent) {
 		  TextView view = (TextView) super.getDropDownView(position, convertView, parent);
 		  int clr = getColorF()                   ;
 		  view.setTextColor(clr)                  ;
-		  view.setTextSize(getFsize() - 2)        ;
+		  view.setTextSize(getFsize())        ;//-2
+		  view.setGravity(Gravity.CENTER)		  ;
 //          view.setLayoutParams(getLayoutParams()) ;
 		  return view;
 		}
@@ -190,11 +202,13 @@ public class UiElementDeserializer implements JsonDeserializer<UiElement>{
 	  try{ sp.setAdapter(adapter)                 ;
 	  }catch(IllegalArgumentException e){/*Log.w(UiElement.TAG,"",e);*/}
 
-	  sp.setTag(getId())  	;
-	  int ix = getIValue()  ;
+	  sp.setTag(getId())  		;
+	  sp.setPadding(0,4,0,4)	;
+	  sp.setGravity(Gravity.CENTER)	;
+	  if(notab == 0) sp.setBackgroundResource(R.drawable.btn_device_bg)	;
+	  int ix = getIValue()  	;
 	  if(ix >= 0 && ix < items.length) sp.setSelection(ix);
 
-	  sp.setLayoutParams(getLayoutParams());
 	  return sp;
 	}
   }

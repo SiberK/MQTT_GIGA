@@ -58,16 +58,16 @@ public class UiElement{
 	}
 //================================================================================
 	public LinearLayout.LayoutParams getLayoutParams(){
+	  	float wgt = wwidth > 0 ? wwidth : 1	;
   		LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
 		  ViewGroup.LayoutParams.WRAP_CONTENT,
-		  ViewGroup.LayoutParams.WRAP_CONTENT, wwidth > 0 ? wwidth : 1 );
-  		lp.gravity = Gravity.CENTER ;
-//	lp.setMargins(2,2,2,2);
+		  ViewGroup.LayoutParams.WRAP_CONTENT, wgt );
   		return lp;}
-  	public LinearLayout.LayoutParams getLayoutParams0(){
-		LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-			0,
-			ViewGroup.LayoutParams.WRAP_CONTENT, wwidth > 0 ? wwidth : 1 );
-//	lp.setMargins(2,2,2,2);
-		return lp;}
+  	public LinearLayout.LayoutParams getLayoutParams(int parentOrientation){
+	  	float wgt = wwidth > 0 ? wwidth : 1	;
+		int  wdth = parentOrientation == LinearLayout.HORIZONTAL ? 0 : ViewGroup.LayoutParams.WRAP_CONTENT	;
+		int  hgt =  ViewGroup.LayoutParams.WRAP_CONTENT	;
+		LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(wdth,hgt, wgt );
+	  	lp.setMargins(2,2,2,2);
+	  return lp;}
 }
