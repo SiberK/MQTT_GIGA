@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+	<!-- Добавляем слой со стрелкой -->
+	<item>
+		<layer-list>
+			<!-- Ваш существующий фон -->
+			<item>
+				<selector>
+					<!-- Отключенное состояние -->
+					<item android:state_enabled="false">
+						<shape android:shape="rectangle">
+							<corners android:radius="8dp" />
+							<solid android:color="@color/disabled_color" />
+							<stroke android:width="2dp" android:color="@color/disabled_stroke_color" />
+						</shape>
+					</item>
+
+					<!-- Состояние нажатия -->
+					<item android:state_pressed="true">
+						<ripple android:color="@color/ripple_color" android:radius="8dp">
+							<item>
+								<shape android:shape="rectangle">
+									<corners android:radius="8dp" />
+									<solid android:color="@color/colorSecDark" />
+									<stroke android:width="4dp" android:color="@color/colorPrimaryDark" />
+								</shape>
+							</item>
+							<item android:id="@android:id/mask">
+								<shape android:shape="rectangle">
+									<corners android:radius="8dp" />
+									<solid android:color="@android:color/white" />
+								</shape>
+							</item>
+						</ripple>
+					</item>
+
+					<!-- Нормальное состояние -->
+					<item>
+						<shape android:shape="rectangle">
+							<corners android:radius="8dp" />
+							<solid android:color="@color/colorPrimary" />
+							<stroke android:width="2dp" android:color="@color/colorPrimaryDark" />
+						</shape>
+					</item>
+				</selector>
+			</item>
+
+			<!-- Стрелка справа (значок выпадающего списка) -->
+			<item android:gravity="right|center_vertical" android:right="8dp">
+				<vector android:width="24dp"
+					android:height="24dp"
+					android:viewportWidth="24"
+					android:viewportHeight="24"
+					android:tint="@android:color/black">
+					<path android:fillColor="@android:color/black"
+						android:pathData="M7,10l5,5 5,-5z"/>
+				</vector>
+			</item>
+		</layer-list>
+	</item>
+</selector>

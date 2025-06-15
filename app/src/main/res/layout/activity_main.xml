@@ -4,7 +4,7 @@
 	android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="0dp">
 
 	<TableLayout
 		android:id="@+id/contButtons"
@@ -12,11 +12,14 @@
 		android:layout_height="wrap_content">
 	</TableLayout>
 
-	<FrameLayout
-		android:id="@+id/contFace"
+	<ScrollView
 		android:layout_width="match_parent"
-		android:layout_height="match_parent"
-		android:layout_weight="1">
-	</FrameLayout>
+		android:layout_height="match_parent">
+		<FrameLayout
+			android:id="@+id/contFace"
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content">
+		</FrameLayout>
+	</ScrollView>
 
 </LinearLayout>

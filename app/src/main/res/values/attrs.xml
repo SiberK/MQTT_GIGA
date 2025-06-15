@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+	<declare-styleable name="CompositeButton">
+		<!-- Основной текст -->
+		<attr name="mainText" format="string" />
+		<attr name="mainTextColor" format="color" />
+		<attr name="mainTextSize" format="dimension" />
+
+		<!-- Дополнительный текст -->
+		<attr name="extraText" format="string" />
+		<attr name="extraTextColor" format="color" />
+		<attr name="extraTextSize" format="dimension" />
+	</declare-styleable>
+</resources>

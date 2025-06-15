@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+	<!-- Отключенное состояние -->
+	<item android:state_enabled="false">
+		<shape android:shape="rectangle">
+			<corners android:radius="8dp" />
+			<solid android:color="@color/disabled_color" />
+			<stroke android:width="2dp" android:color="@color/disabled_stroke_color" />
+		</shape>
+	</item>
+
+	<!-- Состояние нажатия с ripple-эффектом -->
+	<item android:state_pressed="true">
+		<ripple
+			android:color="@color/ripple_color"
+			android:radius="8dp">
+
+			<!-- Фон при нажатии -->
+			<item>
+				<shape android:shape="rectangle">
+					<corners android:radius="8dp" />
+					<solid android:color="@color/colorSecDark" />
+					<stroke	android:width="4dp"	android:color="@color/colorPrimaryDark" />
+				</shape>
+			</item>
+
+			<!-- Маска для ripple-эффекта -->
+			<item android:id="@android:id/mask">
+				<shape android:shape="rectangle">
+					<corners android:radius="8dp" />
+					<solid android:color="@android:color/white" />
+				</shape>
+			</item>
+		</ripple>
+	</item>
+
+	<!-- Нормальное состояние -->
+	<item>
+		<layer-list>
+			<!-- Прогресс (динамически изменяемый) -->
+			<item android:id="@android:id/progress">
+				<clip>
+					<shape android:shape="rectangle">
+						<corners android:radius="4dp" />
+						<solid android:color="#4CAF50" />
+					</shape>
+				</clip>
+			</item>
+			<item>
+				<shape android:shape="rectangle">
+					<corners android:radius="8dp" />
+					<solid android:color="@color/colorPrimary" />
+					<stroke	android:width="2dp"	android:color="@color/colorPrimaryDark" />
+				</shape>
+			</item>
+		</layer-list>
+	</item>
+</selector>

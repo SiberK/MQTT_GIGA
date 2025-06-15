@@ -4,6 +4,7 @@ import android.content.Context;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
+import android.view.SubMenu;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -52,17 +53,20 @@ public class DynamicFormFragment extends Fragment{
   }
   //============================================================================================
   public void clear(){if(container != null){ container.removeAllViews()	; container = null	;}}
-  public void buildFace(String json){
+  public void buildFace(String json, SubMenu subMenu){
   	if(json != null && !json.isEmpty() && layoutBuilder != null
-			&& container != null && context != null)
-  		layoutBuilder.buildLayout(json, container)	;
+			&& container != null && context != null){
+	    container.setVisibility(View.VISIBLE)				;
+  		layoutBuilder.buildLayout(json, container,subMenu)	;}
   }
   public void updateFace(String json){
 	if(json != null && !json.isEmpty() && layoutBuilder != null
-			&& container != null && context != null)
-	  layoutBuilder.updateFace(json,container)		;
+			&& container != null && context != null){
+	  container.setVisibility(View.VISIBLE)			;
+      layoutBuilder.updateFace(json,container)		;}
   }
 
-  public void removeAllViews(){if(container != null) container.removeAllViews()	;}
+  public void removeAllViews(){if(container != null){
+	container.removeAllViews()	; container.setVisibility(View.GONE)	;}}
   //============================================================================================
 }

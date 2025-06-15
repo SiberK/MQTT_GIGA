@@ -13,4 +13,18 @@
         <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
         <!-- Customize your theme here. -->
     </style>
+
+    <style name="CompositeButtonStyle" parent="Widget.MaterialComponents.Button">
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="cornerRadius">8dp</item>
+        <item name="elevation">2dp</item>
+        <item name="android:minHeight">54dp</item>
+        <item name="android:textAppearanceButton">@style/TextAppearance.CompositeButton</item>
+    </style>
+
+    <style name="TextAppearance.CompositeButton" parent="TextAppearance.MaterialComponents.Button">
+        <item name="android:lineSpacingExtra">0sp</item>
+        <item name="android:letterSpacing">0.01</item>
+    </style>
 </resources>

@@ -17,6 +17,7 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.MotionEvent;
+import android.view.SubMenu;
 import android.view.View;
 import android.widget.Button;
 import android.widget.FrameLayout;
@@ -25,7 +26,7 @@ import android.widget.TableLayout;
 import android.widget.TableRow;
 import android.widget.TextView;
 import android.widget.Toast;
-import androidx.appcompat.widget.Toolbar;
+
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
@@ -67,6 +68,7 @@ public class MainActivity extends AppCompatActivity{
   	private MenuItem			miCancel			;
 	private MenuItem			miMenu				;
   	private MenuItem			miRfrsh				;
+  	private SubMenu 			subMenu				;
 
   //---------------------------------------------------------------
 	@Override
@@ -107,11 +109,12 @@ public class MainActivity extends AppCompatActivity{
 	createDeviceMatButtons()									;
 	if(miCancel != null) miCancel.setVisible(false)				;
 	if(miMenu   != null) miMenu  .setVisible(false)				;
+	if(miSettings != null) miSettings.setVisible(true)			;
 	setTitle("")	;
   }
   private void onClickBuild(){// это для теста
 	if(btnContainer != null)	btnContainer.removeAllViews()		; // Очистка предыдущих кнопок
-	if(faceContainer != null)	faceContainer.buildFace(strTest1)	;}
+	if(faceContainer != null)	faceContainer.buildFace(strTest1,subMenu)	;}
   private void onClickUpdate(){// это для теста
 	if(btnContainer != null)	btnContainer.removeAllViews()		; // Очистка предыдущих кнопок
 	if(faceContainer != null) 	faceContainer.updateFace(strUpdate)	;}
@@ -133,8 +136,8 @@ public class MainActivity extends AppCompatActivity{
         @Override
         public void onReceive(Context context, @NonNull Intent intent) {
             messageParse(intent.getStringExtra("topic"),intent.getStringExtra("message"))   ;
-            addDevice(intent.getStringExtra("device"))      ;
-			setMqttUid(intent.getStringExtra("user_uid"))	;
+            addDevice(intent.getStringExtra("device"))      	;
+			setMqttUid(intent.getStringExtra("user_uid"))		;
 
 		    String onOff = intent.getStringExtra("start_stop")	;
 			if(noEmpty(onOff)){ flStartMqtt = onOff.equals("start")	;
@@ -166,15 +169,20 @@ public class MainActivity extends AppCompatActivity{
 				  curDevice  = devManager.findByPfx(currDevPfx)						;
 				  currDevName =curDevice != null ? curDevice.getNamePfx() : ""		;
 				  setTitle(currDevName)												;
-				  if(miCancel != null) miCancel.setVisible(true)					;
+				  if(subMenu  != null) subMenu.clear()								;
 				  if(miMenu   != null) miMenu.setVisible(true)						;
+				  if(miCancel != null) miCancel.setVisible(true)					;
+				  if(miSettings != null) miSettings.setVisible(false)				;
 				  if(btnContainer != null)	btnContainer.removeAllViews()			; // Очистка предыдущих кнопок
-				  if(faceContainer != null)	faceContainer.buildFace(msg.getMsg())	;}
+				  if(faceContainer != null)	faceContainer.buildFace(msg.getMsg(),subMenu)	;
+//				  invalidateOptionsMenu()	;
+				}
 			  break	;
 
 			  case update:
 				if(!msg.getMsg().isEmpty() && msg.getDevPfx().equals(currDevPfx)){
-				  if(btnContainer != null)	btnContainer.removeAllViews()			; // Очистка предыдущих кнопок
+				  if(btnContainer != null){	btnContainer.removeAllViews()			; // Очистка предыдущих кнопок
+											btnContainer.setVisibility(View.GONE)	;}
 				  if(faceContainer != null) faceContainer.updateFace(msg.getMsg())	;}
 			  break	;
 			}
@@ -231,8 +239,9 @@ public class MainActivity extends AppCompatActivity{
 	  Log.e(TAG, "GridLayout или список устройств равен null"); return	;}
 
 	btnContainer.removeAllViews()							; // Очистка предыдущих кнопок
+	btnContainer.setVisibility(View.VISIBLE);
 
-	TableRow.LayoutParams params = new TableRow.LayoutParams(TableRow.LayoutParams.MATCH_PARENT,
+	TableRow.LayoutParams params = new TableRow.LayoutParams(0,//TableRow.LayoutParams.MATCH_PARENT,
 															 TableRow.LayoutParams.WRAP_CONTENT,1.0f);
 	params.setMargins(8, 8, 8, 8);
 
@@ -261,6 +270,7 @@ public class MainActivity extends AppCompatActivity{
 	btn.setHint(device.getPrefix())	;
 	btn.setId(btnId)				;
 	btn.setTextSize(26)				;
+	btn.setSingleLine()				;
 	btn.setAllCaps(false)			;
 	btn.setPadding(8,8,8,8)			;
 
@@ -361,6 +371,7 @@ private void onDeviceClicked(Device device) {
 		  if(item.getItemId() == R.id.action_cancel  ) miCancel   = item	;
 		  if(item.getItemId() == R.id.action_rfrsh   ) miRfrsh    = item	;
 		  if(item.getItemId() == R.id.action_menu    ) miMenu     = item	;
+		  if(miMenu != null && miMenu.hasSubMenu()) subMenu = miMenu.getSubMenu()	;
 		  if(miCancel != null) miCancel.setVisible(false)	; setTitle("")	;
 		}
         return true;
@@ -369,19 +380,21 @@ private void onDeviceClicked(Device device) {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         boolean rzlt = super.onOptionsItemSelected(item);
+		int order = item.getOrder()		;
+		int groupId = item.getGroupId()	;
         // Обработка нажатий на пункты меню
         if(item.getItemId() == R.id.action_settings){
             Intent intent = new Intent(this, SettingsActivity.class) ;
-            startActivity(intent)   ;
-            rzlt = true   			;
-        }
+            startActivity(intent)   ; rzlt = true   			;}
         else if(item.getItemId() == R.id.action_cancel){
-		  	onClickRst()			;
-            rzlt = true   			;
-        }
+		  	onClickRst()			; rzlt = true   			;}
         else if(item.getItemId() == R.id.action_rfrsh){
-            rzlt = true   			;
-        }
+            rzlt = true   			;}
+		else if(miMenu != null && groupId == miMenu.getItemId()){
+		  String strId = (String) miMenu.getTitle();
+		  MqttWork.onClickFaceElement("menu",strId,String.valueOf(order))	;
+		  rzlt = true	;
+		}
     return rzlt ;
     }
     //---------------------------------------------------------------
