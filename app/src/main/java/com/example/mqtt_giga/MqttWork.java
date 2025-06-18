@@ -52,13 +52,13 @@ public class MqttWork implements MqttCallbackExtended{
   public static List<String> listPing = null	;
   public static List<String> listPfx  = null	;
   private static boolean flReconnect = false	;
-  private static Context	context = null		;
+//  private static Context	context = null		;
   private static String 	delayTopic   = ""	;
   private static String 	delayMessage = ""	;
   public 	WorkCallback	myCallback			;
 
   //---------------------------------------------------------------------------------
-  public MqttWork(Context _con){ context = _con	;}
+  public MqttWork(){}
   //---------------------------------------------------------------------------------
   public static String   ReplaceTag(String Str){
 	int SizeArr = HubTag.length     			;
@@ -312,15 +312,12 @@ public class MqttWork implements MqttCallbackExtended{
   }
   //---------------------------------------------------------------
   private void reportBr(@NonNull String ... str){
-	Intent broadcastIntent = new Intent()               ;
-	broadcastIntent.setAction("FROM_MQTT_SERVICE")  	;
-
-	List<String> listBr = new ArrayList<>()				;
-	for(String s : str) listBr.add(s)					;
-	for(int ix=0;ix<listBr.size();ix+=2){
-	  if(!listBr.get(ix+1).isEmpty())
-	    broadcastIntent.putExtra(listBr.get(ix),listBr.get(ix+1));}
-	context.sendBroadcast(broadcastIntent)              ;}
+	if(myCallback != null){
+	  List<String> listBr = new ArrayList<>()			;
+	  for(String s : str) listBr.add(s)					;
+	  myCallback.onReportBr(listBr)						;
+	}
+}
   //---------------------------------------------------------------
   private void reportW(String str){
 	if(myCallback != null){
@@ -501,6 +498,7 @@ public class MqttWork implements MqttCallbackExtended{
   //--------------------------------------------------------------------------------------
   public interface WorkCallback{
 	void onReportW(String str)	;
+	void onReportBr(List<String> list)	;
 	void onAlarm()				;
   }
   //--------------------------------------------------------------------------------------

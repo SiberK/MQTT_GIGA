@@ -105,10 +105,11 @@ public class MQTTService extends Service{
 	isServiceRunning = true	;
 	isRunning = true        ;
 	if(workerMqtt == null){
-	  workerMqtt = new MqttWork(this)				;
+	  workerMqtt = new MqttWork()				;
 	  workerMqtt.myCallback = new MqttWork.WorkCallback(){
-				@Override public void onReportW(String str)	{ ReportW(str)	;}
-				@Override public void onAlarm()				{ Alarm()		;}};
+		@Override public void onReportW(String str)	{ ReportW(str)	;}
+		@Override public void onReportBr(List<String> list){ ReportBr(list)	;}
+		@Override public void onAlarm()				{ Alarm()		;}};
 	}
 
 	SharedPreferences prefs         = getSharedPreferences("MQTT_SETTINGS", MODE_PRIVATE);
@@ -243,6 +244,15 @@ public class MQTTService extends Service{
 	if (localOut != null){
 	try{ localOut.write(str.getBytes())		; localOut.flush()	;
 	} catch (IOException e) { Log.e(TAG,"",e)		;}}
+  }
+  void ReportBr(List<String> listBr){
+	Intent broadcastIntent = new Intent()               ;
+	broadcastIntent.setAction("FROM_MQTT_SERVICE")  	;
+
+	for(int ix=0;ix<listBr.size();ix+=2){
+	  if(!listBr.get(ix+1).isEmpty())
+		broadcastIntent.putExtra(listBr.get(ix),listBr.get(ix+1));}
+		sendBroadcast(broadcastIntent)             	 	;
   }
   //-----------------------------------------------------------------------------
   private void LogW(String str) { OutputStream localOut = getOutputStream();
