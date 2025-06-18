@@ -93,6 +93,11 @@ public class MainActivity extends AppCompatActivity{
 	  startStopServiceMqtt(flStartMqtt)		;
 	}
   //=====================================================================
+  @Override protected void onDestroy() {
+	super.onDestroy()           ;
+	if(receiver != null) unregisterReceiver(receiver)   ; // Отмена регистрации ресивера
+  }
+  //=====================================================================
   private void startStopServiceMqtt(boolean flStart){
 	if(serviceIntent != null){
 	  if(flStart){	startService(serviceIntent) 	; Log.i(TAG,"Сервис старт")		;

@@ -50,7 +50,7 @@ public class MQTTService extends Service{
 //    private Timer   timerPing       ;
 	private static final int TIME_CHECK = (5*60000)		;
 	private static boolean flReconnect = false			;
-	private volatile InetAddress remoteAddress = null		;
+	private volatile InetAddress remoteAddress = null	;
     private static final int UDP_PORT 	= 3001			;
     private static final int TCP_PORT  = 3000			;
 	private  OutputStream    tcpOut    = null			;
@@ -90,7 +90,7 @@ public class MQTTService extends Service{
 	if (mediaPlayer != null) {
 	  mediaPlayer.release()   	;
 	  mediaPlayer = null      	;}
-	unregisterReceiver(receiver);
+	if(receiver != null) unregisterReceiver(receiver);
   }
   //---------------------------------------------------------------
   //---------------------------------------------------------------

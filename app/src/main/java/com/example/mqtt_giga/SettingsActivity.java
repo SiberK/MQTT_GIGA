@@ -123,11 +123,10 @@ public class SettingsActivity extends AppCompatActivity
         sendBroadcast(broadcastIntent)                      ;
     }
     //---------------------------------------------------------------
-    @Override
-    protected void onDestroy() {
+    @Override protected void onDestroy() {
         saveSettings()              ;
         super.onDestroy()           ;
-        unregisterReceiver(receiver); // Отмена регистрации ресивера
+        if(receiver != null) unregisterReceiver(receiver)   ; // Отмена регистрации ресивера
     }
     //---------------------------------------------------------------
     private void showSoundPicker() {
@@ -211,28 +210,6 @@ public class SettingsActivity extends AppCompatActivity
         tvSound     .setText(strSound)  ;
     }
     //---------------------------------------------------------------
-    // Запуск сервиса
-//    private void startMqttService() {
-//        saveSettings()  ;
-//        serviceIntent.putExtra("SERVER_ADDRESS" , curAccount.getServer());
-//        serviceIntent.putExtra("PORT"           , Integer.parseInt(curAccount.getPort()));
-//        serviceIntent.putExtra("LOGIN"          , curAccount.getLogin());
-//        serviceIntent.putExtra("PASSWORD"       , curAccount.getPassword());
-//        serviceIntent.putExtra("TOPIC_NAME"     , etDevPfx.getText().toString());
-//        serviceIntent.putExtra("CODE_WORD"      , etCodeWord.getText().toString());
-//        serviceIntent.putExtra("USER_UID"       , tvUID.getText().toString());
-//        serviceIntent.putExtra("SEL_RINGTONE"   , strSound);
-//        startService(serviceIntent) ;
-//        Toast.makeText(SettingsActivity.this, "Сервис запущен", Toast.LENGTH_SHORT).show();
-//    }
-    //---------------------------------------------------------------
-    // Остановка сервиса
-//    private void stopMqttService() {
-//        if(serviceIntent != null){
-//            stopService(serviceIntent);
-//            Toast.makeText(SettingsActivity.this, "Сервис остановлен", Toast.LENGTH_SHORT).show();}
-//    }
-    //---------------------------------------------------------------
     @Override
     public void onAccountSelected(Account _account) {
         curAccount = _account  ;
@@ -273,18 +250,9 @@ public class SettingsActivity extends AppCompatActivity
         boolean rzlt = super.onOptionsItemSelected(item);
         // Обработка нажатий на пункты меню
         if(item.getItemId() == R.id.action_settings){
-//            Toast.makeText(this, "action_settings", Toast.LENGTH_SHORT).show();
             finish()    ;
             rzlt = true   ;
         }
-//        else if(item.getItemId() == R.id.action_search){
-//            Toast.makeText(this, "action_search", Toast.LENGTH_SHORT).show();
-//            rzlt = true   ;
-//        }
-//        else if(item.getItemId() == R.id.action_help){
-//            Toast.makeText(this, "action_help", Toast.LENGTH_SHORT).show();
-//            rzlt = true   ;
-//        }
         return rzlt ;
     }
     //---------------------------------------------------------------
