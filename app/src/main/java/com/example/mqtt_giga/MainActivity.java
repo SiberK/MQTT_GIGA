@@ -43,8 +43,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.List;
 
-import gson_parser.DynamicFormFragment;
-
 //---------------------------------------------------------------
 public class MainActivity extends AppCompatActivity{
     private static final String TAG = "MAIN";

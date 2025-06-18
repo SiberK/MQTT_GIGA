@@ -12,6 +12,7 @@ import org.eclipse.paho.client.mqttv3.MqttClient;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
 import org.eclipse.paho.client.mqttv3.MqttException;
 import org.eclipse.paho.client.mqttv3.MqttMessage;
+import org.eclipse.paho.client.mqttv3.MqttPersistenceException;
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 import java.io.UnsupportedEncodingException;
@@ -72,37 +73,25 @@ public class MqttWork implements MqttCallbackExtended{
   //---------------------------------------------------------------------------------
   // Этот метод написал GIGAchat  !!!!
   public static boolean checkBracketsBalance(String input) {
-	if (!noEmpty(input))  return true	;
-
-	Stack<Character> stack = new Stack<>();
+	if (!noEmpty(input))  return true			;
+	Stack<Character> stack = new Stack<>()		;
 
 	for (char ch : input.toCharArray()) {
 	  switch(ch) {
-		case '(':
-		case '[':
-		case '{':
-		  stack.push(ch); // Открывающая скобка помещается в стек
+		case '(': case '[':	case '{':  stack.push(ch)	; break	; // Открывающая скобка помещается в стек
+		case ')': 	if (!stack.isEmpty() && stack.peek() == '(')
+						stack.pop()								; // Закрывающая соответствует открывающей
+		  			else return false							; // Нарушение баланса
 		  break;
 
-		case ')':
-		  if (!stack.isEmpty() && stack.peek() == '(')
-			stack.pop(); // Закрывающая соответствует открывающей
-		  else
-			return false; // Нарушение баланса
+		case ']':	if (!stack.isEmpty() && stack.peek() == '[')
+						stack.pop()								;
+		  			else return false							;
 		  break;
 
-		case ']':
-		  if (!stack.isEmpty() && stack.peek() == '[')
-			stack.pop();
-		  else
-			return false;
-		  break;
-
-		case '}':
-		  if (!stack.isEmpty() && stack.peek() == '{')
-			stack.pop();
-		  else
-			return false;
+		case '}':	if (!stack.isEmpty() && stack.peek() == '{')
+						stack.pop()								;
+		  			else return false							;
 		  break;
 	  }
 	}
@@ -157,7 +146,7 @@ public class MqttWork implements MqttCallbackExtended{
 	MemoryPersistence persistence = new MemoryPersistence();
 	String            brokerUrl   = "tcp://" + srvAddr + ":" + port;
 
-	if(UserUID == null || UserUID.length() < 5){
+	if(UserUID == null || UserUID.length() < 5 || UserUID.length() > 10){
 	  // !!! сделал так потому-что MqttClient.generateClientId() генерирует очень длинный ClientId !!!!
 	  UserUID = String.format("%08x", MqttClient.generateClientId().hashCode())  ;}
 
@@ -189,7 +178,7 @@ public class MqttWork implements MqttCallbackExtended{
   // Подписка на тему
   private void subscribeToTopic(String topic) {
 	try { if(mqttClient.isConnected())	mqttClient.subscribe(topic, 0);
-	} catch (MqttException e) {
+	} catch (MqttException | IllegalArgumentException e) {
 	  Log.e(TAG, "Ошибка подписки на тему", e)				;
 	  reportBr("message","Ошибка подписки на тему " + e)	;
 	}
@@ -204,7 +193,8 @@ public class MqttWork implements MqttCallbackExtended{
 	  mqttMessage.setQos(0);
 	  if(mqttClient.isConnected())
 		mqttClient.publish(topic, mqttMessage);
-	} catch (UnsupportedEncodingException | MqttException e) {
+	} catch (UnsupportedEncodingException | MqttException |
+			 IllegalArgumentException | IllegalStateException e) {
 	  Log.e(TAG, "Ошибка отправки сообщения", e);
 	}
   }

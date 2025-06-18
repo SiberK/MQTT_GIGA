@@ -1,4 +1,4 @@
-package gson_parser;
+package com.example.mqtt_giga;
 
 import android.content.Context;
 import android.os.Bundle;
@@ -12,13 +12,13 @@ import android.widget.FrameLayout;
 import androidx.annotation.NonNull;
 import androidx.fragment.app.Fragment;
 
-import com.example.mqtt_giga.R;
+import gson_parser.LayoutBuilder;
 
 public class DynamicFormFragment extends Fragment{
-  private static final String TAG = "DY_FORM"	;
-  private FrameLayout		container			;
-  private LayoutBuilder 	layoutBuilder		;
-  private Context			context				;
+  private static final String        TAG = "DY_FORM"	;
+  private              FrameLayout   container			;
+  private              LayoutBuilder layoutBuilder		;
+  private              Context       context				;
 
   public DynamicFormFragment(){}	// Required empty public constructor
   public static DynamicFormFragment newInstance() {

@@ -2,6 +2,7 @@ package gson_parser;
 
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import static com.example.mqtt_giga.MqttWork.noEmpty;
 import com.google.gson.JsonElement;
@@ -41,12 +42,14 @@ public class UiElement{
   	public int    getFsize()  { return fsize     ;}
     public int    getWwidth() { return wwidth    ;}
 	public int    getNolabel(){ return nolabel   ;}
-	public int    getNotab()  { return notab     ;}
+	public int    getNoTab()  { return notab     ;}
   	public boolean getSquare(){ return getBoolValue(square,false)	;}
 
-  	public int getColorF(){return getColor() | 0xFF000000	;}
-  	public void setType(String val){type = getStrValue(val)	;}
-	public String getIcChar(){ return getIcChar(icon)		;}
+  	public int getColorF()			{ return getColor() | 0xFF000000	;}
+	public String getIcChar()		{ return getIcChar(icon)			;}
+  	public int getTextAlignment()	{ return getTextAlignment(align)	;}
+  	public boolean getChecked()		{ return getStrValue(value).equals("1");}
+  	public void setType(String val)	{ type = getStrValue(val)			;}
 //=======================================================================
   public static String getIcChar(String val){
   	if(!noEmpty(val)) val = ""	;
@@ -63,10 +66,16 @@ public class UiElement{
   //=======================================================================
   public static String getStrValue(String str){ if(str == null) str = ""  ; return str     ;}
 //=======================================================================
+public static int getTextAlignment(String align){
+  int al = getIntValue(align, 1)					;
+  return al == 0 ? TextView.TEXT_ALIGNMENT_VIEW_START :
+		 al == 1 ? TextView.TEXT_ALIGNMENT_CENTER     :
+		 al == 2 ? TextView.TEXT_ALIGNMENT_VIEW_END   : TextView.TEXT_ALIGNMENT_CENTER  ;}
+//====================================================================================
 	public UiElement(){}
   //========================================================================
   public UiElement(String _id,JsonObject obj){
-	// Заполнение полей
+	// Заполнение полей для update!!!
 	id    = _id;
 	value = getStringValue(obj, "value")	;
 	text  = getStringValue(obj, "text" )	;
@@ -77,7 +86,7 @@ public class UiElement{
 	align = getStringValue(obj, "align")	;
 	fsize = getIntValue	  (obj, "fsize")	;
 	square= getStringValue(obj, "square")	;
-	// Остальные поля остаются по умолчанию
+	// Остальные поля остаются по умолчанию TODO TODO
   }
   private static String getStringValue(JsonObject obj, String key){
 	String str = null	;
@@ -97,12 +106,8 @@ public class UiElement{
   //========================================================================
   	public void update(UiElement updE){
 	  if(id != null && getId().equals(updE.getId())){
-		value = updE.value	;
-		text  = updE.text	;
-		label = updE.label	;
-		align = updE.align	;
-		icon  = updE.icon	;
-		color = updE.color	;// !!!!! далее потом !!!! TODO
+		value = updE.value	; text  = updE.text	; label = updE.label	;
+		align = updE.align	; icon  = updE.icon	; color = updE.color	;// !!!!! далее потом !!!! TODO
 	  }
 	}
 //================================================================================
@@ -113,6 +118,8 @@ public class UiElement{
 		  ViewGroup.LayoutParams.WRAP_CONTENT, wgt );
   		return lp;}
   	public LinearLayout.LayoutParams getLayoutParams(int parentOrientation){
+		return getLayoutParams(wwidth,parentOrientation)	;}
+  	public static LinearLayout.LayoutParams getLayoutParams(int wwidth, int parentOrientation){
 	  	float wgt = wwidth > 0 ? wwidth : 1	;
 		int  wdth = parentOrientation == LinearLayout.HORIZONTAL ? 0 : ViewGroup.LayoutParams.MATCH_PARENT	;
 		int  hgt =  parentOrientation == LinearLayout.HORIZONTAL ? ViewGroup.LayoutParams.MATCH_PARENT : ViewGroup.LayoutParams.WRAP_CONTENT	;
