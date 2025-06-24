@@ -19,6 +19,7 @@ import static gson_parser.UiElement.getIntValue;
 
 public class UiSelectWidget extends UiWidget{
   private 	static final   String TAG      = "UI_SLCT"	;
+  protected	volatile boolean flTouch = false;
   protected 	Spinner		mSpinner		;
 
   //----------------------------------------------------------------

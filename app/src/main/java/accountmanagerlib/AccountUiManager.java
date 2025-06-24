@@ -15,6 +15,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.mqtt_giga.R;
 import java.util.List;
 import accountmanagerlib.AccManager.Account;
+import gson_parser.UiInputWidget;
+
 //---------------------------------------------------------------------------
 public class AccountUiManager {
     public final Context               context;
@@ -41,25 +43,25 @@ public class AccountUiManager {
         View dialogView = inflater.inflate(R.layout.dialog_add_account, null);
         builder.setView(dialogView);
 
-        EditText etServer   = dialogView.findViewById(R.id.etServer)    ;
-        EditText etPort     = dialogView.findViewById(R.id.etPort)      ;
-        EditText etLogin    = dialogView.findViewById(R.id.etLogin)     ;
-        EditText etPassword = dialogView.findViewById(R.id.etPassword)  ;
+        UiInputWidget uiServer   = dialogView.findViewById(R.id.uiServer)   ;
+        UiInputWidget uiPort     = dialogView.findViewById(R.id.uiPort)     ;
+        UiInputWidget uiLogin    = dialogView.findViewById(R.id.uiLogin)    ;
+        UiInputWidget uiPassword = dialogView.findViewById(R.id.uiPassword) ;
 
         if (accountToEdit != null) {
-            etServer  .setText(accountToEdit.getServer());
-            etPort    .setText(accountToEdit.getPort());
-            etLogin   .setText(accountToEdit.getLogin());
-            etPassword.setText(accountToEdit.getPassword());
+
+            uiServer  .setText(accountToEdit.getServer());
+            uiPort    .setText(accountToEdit.getPort());
+            uiLogin   .setText(accountToEdit.getLogin());
+            uiPassword.setText(accountToEdit.getPassword());
         }
 
         builder.setTitle(accountToEdit == null ? "Добавить аккаунт" : "Редактировать аккаунт")
                 .setPositiveButton("OK", (dialog, id) -> {
-                    String server   = etServer  .getText().toString();
-                    String port     = etPort    .getText().toString();
-                    String login    = etLogin   .getText().toString();
-
-                    String password = etPassword.getText().toString();
+                    String server   = uiServer  .getText().toString();
+                    String port     = uiPort    .getText().toString();
+                    String login    = uiLogin   .getText().toString();
+                    String password = uiPassword.getText().toString();
 
                     if (server.isEmpty() || port.isEmpty()) {
                         Toast.makeText(context, "поля Server и Port должны быть заполнены", Toast.LENGTH_SHORT).show();

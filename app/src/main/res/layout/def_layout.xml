@@ -1,16 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="wrap_content"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    style="@style/AccountItemStyle"
-    android:padding="1dp">
+    android:orientation="horizontal"
+    android:padding="2dp">
 
         <TextView
             android:id="@+id/tvAccItem"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:textSize="18sp"
-            android:padding="1dp"/>
+            android:textSize="20dp"
+            android:padding="2dp"
+            android:singleLine="true"
+            android:background="@drawable/btn_device_bg"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"/>
 
 </LinearLayout>

@@ -2,64 +2,66 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:padding="16dp">
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:orientation="horizontal">
 
-        <EditText
-            android:id="@+id/etServer"
-            android:layout_width="match_parent"
+        <gson_parser.UiInputWidget
+            android:id="@+id/uiServer"
+            app:uiLabel = "Сервер"
+            app:uiNoTab = "true"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
             android:layout_marginTop="8dp"
             android:layout_marginLeft="@dimen/_margin_txt"
-            android:layout_marginRight="@dimen/_margin_txt"
-            android:layout_weight="1"
-            android:hint="Сервер"
-            android:inputType="text" />
+            android:layout_marginRight="@dimen/_margin_txt"/>
 
-        <EditText
-            android:id="@+id/etPort"
-            android:layout_width="match_parent"
+        <gson_parser.UiInputWidget
+            android:id="@+id/uiPort"
+            app:uiLabel = "Порт   (1883)"
+            app:uiNoTab = "true"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="@dimen/_margin_txt"
-            android:layout_marginTop="8dp"
-            android:layout_marginRight="@dimen/_margin_txt"
             android:layout_weight="1"
-            android:hint="Порт"
-            android:inputType="number" />
+            android:layout_marginTop="8dp"
+            android:layout_marginLeft="@dimen/_margin_txt"
+            android:layout_marginRight="@dimen/_margin_txt"/>
 
     </LinearLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="wrap_content"
         android:orientation="horizontal">
 
-        <EditText
-            android:id="@+id/etLogin"
-            android:layout_width="match_parent"
+        <gson_parser.UiInputWidget
+            android:id="@+id/uiLogin"
+            app:uiLabel = "Логин"
+            app:uiNoTab = "true"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:layout_marginTop="8dp"
             android:layout_marginLeft="@dimen/_margin_txt"
-            android:layout_marginRight="@dimen/_margin_txt"
-            android:hint="Логин"
-            android:inputType="text"
-            android:layout_marginTop="8dp"/>
+            android:layout_marginRight="@dimen/_margin_txt"/>
 
-        <EditText
-            android:id="@+id/etPassword"
-            android:layout_width="match_parent"
+        <gson_parser.UiInputWidget
+            android:id  = "@+id/uiPassword"
+            app:uiLabel = "Пароль"
+            app:uiNoTab = "true"
+            app:uiType  = "pass"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:layout_marginTop="8dp"
             android:layout_marginLeft="@dimen/_margin_txt"
-            android:layout_marginRight="@dimen/_margin_txt"
-            android:hint="Пароль"
-            android:inputType="textPassword"
-            android:layout_marginTop="8dp"/>
+            android:layout_marginRight="@dimen/_margin_txt"/>
+
     </LinearLayout>
-
 </LinearLayout>

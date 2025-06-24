@@ -24,4 +24,7 @@
 
     <!-- Ripple-эффект -->
     <color name="ripple_color">#40FFFFFF</color>
+	<color name="colorTitleConnected">#9898FD</color>
+    <color name="colorTitleDisconnected">#FD9898</color>
+	<color name="gray">#a0a0a0</color>
 </resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<notification-sounds>
+	<item name="Sound 1" path="@raw/horn1"/>
+	<item name="Sound 2" path="@raw/horn2"/>
+	<item name="Sound 2" path="@raw/horn3"/>
+	<item name="Sound 2" path="@raw/horn8"/>
+</notification-sounds>

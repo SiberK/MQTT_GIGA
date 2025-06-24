@@ -6,8 +6,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
+import android.content.res.AssetManager;
 import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.graphics.Rect;
+import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.Bundle;
@@ -28,8 +32,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.drawable.DrawableCompat;
 import androidx.fragment.app.FragmentManager;
@@ -42,6 +48,8 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.List;
+
+import gson_parser.UiWidget;
 
 //---------------------------------------------------------------
 public class MainActivity extends AppCompatActivity{
@@ -67,6 +75,9 @@ public class MainActivity extends AppCompatActivity{
 	private MenuItem			miMenu				;
   	private MenuItem			miRfrsh				;
   	private SubMenu 			subMenu				;
+  	private ActionBar 			actionBar			;
+  	private  int 				colorConn 			;
+  	private  int				colorDis  			;
 
   //---------------------------------------------------------------
 	@Override
@@ -75,10 +86,15 @@ public class MainActivity extends AppCompatActivity{
 	  super.onCreate(savedInstanceState)          	;
 	  setContentView(R.layout.activity_main)      	;
 	  receiverRegister()							;// Регистрация ресивера
-
 	  devManager = new DeviceManager(this)        	;
 	  btnContainer = findViewById(R.id.contButtons)	;
 	  faceContainer= DynamicFormFragment.newInstance()		;
+
+	  UiWidget.setFontAwesome(this)					;
+
+	  actionBar	= getSupportActionBar() 			;
+	  colorConn = ContextCompat.getColor(this, R.color.colorTitleConnected)		; // Безопасное получение цвета Color.rgb(0x50,0x50,0xFF)	 		;
+	  colorDis  = ContextCompat.getColor(this, R.color.colorTitleDisconnected)	; // Color.rgb(0xFF,0x50,0x50)			;
 
 	  FrameLayout     	  layF            = findViewById(R.id.contFace)			;
 	  FragmentManager     fragmentManager = getSupportFragmentManager()			;
@@ -88,9 +104,9 @@ public class MainActivity extends AppCompatActivity{
 	  createDeviceMatButtons()						;
 
 	  SharedPreferences prefs = getSharedPreferences("MQTT_SETTINGS", MODE_PRIVATE);
-	  flStartMqtt       = prefs.getBoolean("START"      ,false)     	;
-	  serviceIntent = new Intent(this, MQTTService.class)				;
-	  startStopServiceMqtt(flStartMqtt)		;
+	  flStartMqtt   = prefs.getBoolean("START",false)     	;
+	  serviceIntent = new Intent(this, MQTTService.class)	;
+	  startStopServiceMqtt(flStartMqtt)						;
 	}
   //=====================================================================
   @Override protected void onDestroy() {
@@ -100,10 +116,14 @@ public class MainActivity extends AppCompatActivity{
   //=====================================================================
   private void startStopServiceMqtt(boolean flStart){
 	if(serviceIntent != null){
-	  if(flStart){	startService(serviceIntent) 	; Log.i(TAG,"Сервис старт")		;
-					Toast.makeText(this, "Сервис старт", Toast.LENGTH_SHORT).show()	;}
-	  else{			stopService(serviceIntent)		; Log.i(TAG,"Сервис стоп")		;
-					Toast.makeText(this, "Сервис стоп", Toast.LENGTH_SHORT).show()	;}
+	  if(flStart){	startService(serviceIntent)	; Log.i(TAG,"Сервис старт")				;
+					Toast.makeText(getApplicationContext(), "Сервис старт", Toast.LENGTH_SHORT).show()	;
+					if(actionBar != null)
+		  			   actionBar.setBackgroundDrawable(new ColorDrawable(colorConn))	;}
+	  else{			stopService(serviceIntent)	; Log.i(TAG,"Сервис стоп")				;
+					Toast.makeText(getApplicationContext(), "Сервис стоп", Toast.LENGTH_SHORT).show()	;
+					if(actionBar != null)
+					   actionBar.setBackgroundDrawable(new ColorDrawable(colorDis))		;}
 	}
   }
   //=====================================================================
@@ -144,15 +164,15 @@ public class MainActivity extends AppCompatActivity{
 
 		    String onOff = intent.getStringExtra("start_stop")	;
 			if(noEmpty(onOff)){ flStartMqtt = onOff.equals("start")	;
-				startStopServiceMqtt(flStartMqtt)				;}
-        }
+				startStopServiceMqtt(flStartMqtt)				;}}
     };
 //=====================================================================
     private void messageParse(String topic, String message) {
         if(topic != null && message != null){
 		    boolean flRe = false	;// сохранить список устройств
 		    Button btn   = null		;
-            Message msg  = new Message(topic,message)			;
+            Message msg     = new Message(topic,message)		;
+//		  	Toolbar toolbar = findViewById(R.id.toolbar)		;
 
 			switch(msg.getType()){
 			  case discover	:
@@ -168,16 +188,19 @@ public class MainActivity extends AppCompatActivity{
 
 			  case ui :
 				if(!msg.getMsg().isEmpty() && msg.getDstUid().equals(mqttUid)){
-				  currDevUid = msg.getSrcUid()	; currDevPfx = msg.getDevPfx()		;
-				  curDevice  = devManager.findByPfx(currDevPfx)						;
-				  currDevName =curDevice != null ? curDevice.getNamePfx() : ""		;
-				  setTitle(currDevName)												;
-				  if(subMenu  != null) subMenu.clear()								;
-				  if(miMenu   != null) miMenu.setVisible(true)						;
-				  if(miCancel != null) miCancel.setVisible(true)					;
-				  if(miSettings != null) miSettings.setVisible(false)				;
-				  if(btnContainer != null)	btnContainer.removeAllViews()			; // Очистка предыдущих кнопок
-				  if(faceContainer != null)	faceContainer.buildFace(msg.getMsg(),subMenu)	;
+				  currDevUid = msg.getSrcUid()	; currDevPfx = msg.getDevPfx()	;
+				  curDevice  = devManager.findByPfx(currDevPfx)					;
+				  currDevName =curDevice != null ? curDevice.getNamePfx() : ""	;
+				  setTitle(currDevName)											;
+				  if (actionBar != null)
+					actionBar.setBackgroundDrawable(new ColorDrawable(colorConn))	;
+				  //				  setTitleColor(R.color.colorTitleConnected)					;
+				  if(subMenu  	  != null) subMenu.clear()						;
+				  if(miMenu   	  != null) miMenu.setVisible(true)				;
+				  if(miCancel 	  != null) miCancel.setVisible(true)			;
+				  if(miSettings   != null) miSettings.setVisible(false)			;
+				  if(btnContainer != null) btnContainer.removeAllViews()		; // Очистка предыдущих кнопок
+				  if(faceContainer!= null) faceContainer.buildFace(msg.getMsg(),subMenu)	;
 //				  invalidateOptionsMenu()	;
 				}
 			  break	;
@@ -199,7 +222,10 @@ public class MainActivity extends AppCompatActivity{
   public static String getCurrDevUid(){return Instance == null ? "" : Instance.currDevUid	;}
   public static String getCurrDevPfx(){return Instance == null ? "" : Instance.currDevPfx	;}
   //---------------------------------------------------------------
-  private void setMqttUid(String val){if(noEmpty(val)) mqttUid = val	;}
+  private void setMqttUid(String val){
+	  if(noEmpty(val))
+		mqttUid = val	;
+	}
   private void fillListPing(){
 	Intent broadcastIntent = new Intent("TO_MQTT_SERVICE") 		;// Отправка данных в активность
 	broadcastIntent.putExtra("fill_list_ping","fill_list_ping")   ;
@@ -216,20 +242,18 @@ public class MainActivity extends AppCompatActivity{
     }
   //---------------------------------------------------------------
 	private void removeDevice(String pfx){
-		devManager.removeDevice(pfx)    		;
+		if(devManager.removeDevice(pfx)){
+			sendBroadcastTo("TO_MQTT_SERVICE","unsubscribe",pfx)	;}
 	  	createDeviceMatButtons()				;
 		fillListPing()							;}
   //---------------------------------------------------------------
     private void findDevice(String pfx) {
-        Intent broadcastIntent = new Intent("TO_MQTT_SERVICE") ;// Отправка данных в активность
-	  	broadcastIntent.putExtra("type_msg","find")    ;
-	  	broadcastIntent.putExtra("prefix",pfx) 	;
-        sendBroadcast(broadcastIntent)          ;}
+	    sendBroadcastTo("TO_MQTT_SERVICE","type_msg","find","prefix",pfx)	;
+	}
     //---------------------------------------------------------------
     private void subscribeTo(String pfx) {
-        Intent broadcastIntent = new Intent("TO_MQTT_SERVICE") ;// Отправка данных в активность
-        broadcastIntent.putExtra("prefix",pfx)  ;
-        sendBroadcast(broadcastIntent)          ;}
+	  	sendBroadcastTo("TO_MQTT_SERVICE","subscribe",pfx)	;
+	}
 //---------------------------------------------------------------
   private void createDeviceMatButtons() {
 	MaterialButton 	btn			;
@@ -313,7 +337,7 @@ public class MainActivity extends AppCompatActivity{
 	// Создаем кастомный макет для диалога
 	View dialogView = LayoutInflater.from(this)
 									.inflate(R.layout.dialog_device_actions, null);
-
+	dialogView.setBackgroundResource(R.drawable.btn_device_bg)	;
 	// Находим элементы управления
 	ImageView ivDel   = dialogView.findViewById(R.id.ivDelete)	;
 	ImageView ivCheck = dialogView.findViewById(R.id.ivCheck)	;
@@ -341,17 +365,20 @@ public class MainActivity extends AppCompatActivity{
 	});
 
 	dialog.show();}
-//----------------------------------------------------------------------------
-private void onDeviceClicked(Device device) {
-  // Обработка нажатия на устройство
-  Toast.makeText(this, "Выбрано: " + device.getPrefix(), Toast.LENGTH_SHORT).show();
-
-  Intent broadcastIntent = new Intent("TO_MQTT_SERVICE") 	;// Отправка данных в активность
-  broadcastIntent.putExtra("prefix" ,device.getPrefix())	;
-  broadcastIntent.putExtra("dev_uid",device.getUID())   	;
-  broadcastIntent.putExtra("type_msg","get_ui") 			;
-  sendBroadcast(broadcastIntent)          					;
-}
+	//----------------------------------------------------------------------------
+	private void onDeviceClicked(Device device) {  // Обработка нажатия на устройство
+  		Toast.makeText(this, "Выбрано: " + device.getPrefix(), Toast.LENGTH_SHORT).show();
+		sendBroadcastTo("TO_MQTT_SERVICE","prefix" ,device.getPrefix(),"dev_uid",device.getUID(),"type_msg","get_ui");
+	}
+  //---------------------------------------------------------------
+  private void sendBroadcastTo(String Addr,String ... params){
+	Intent brcIntent = new Intent(Addr)		;// Отправка данных в активность
+	for(int ix=0;ix<params.length;ix+=2){
+	  if(noEmpty(params[ix]))
+		brcIntent.putExtra(params[ix],params[ix+1])	;
+	}
+	sendBroadcast(brcIntent)					;
+  }
   //---------------------------------------------------------------
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {

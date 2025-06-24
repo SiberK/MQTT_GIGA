@@ -6,20 +6,59 @@
     android:orientation="vertical"
     android:padding="0dp">
 
-	<TableLayout
-		android:id="@+id/contButtons"
+	<LinearLayout
 		android:layout_width="match_parent"
-		android:layout_height="wrap_content">
-	</TableLayout>
-
-	<ScrollView
-		android:layout_width="match_parent"
-		android:layout_height="match_parent">
-		<FrameLayout
-			android:id="@+id/contFace"
+		android:layout_height="0dp"
+		android:layout_weight="12"
+		android:orientation="vertical">
+		<TableLayout
+			android:id="@+id/contButtons"
 			android:layout_width="match_parent"
 			android:layout_height="wrap_content">
-		</FrameLayout>
-	</ScrollView>
+		</TableLayout>
+
+		<ScrollView
+			android:layout_width="match_parent"
+			android:layout_height="wrap_content">
+			<FrameLayout
+				android:id="@+id/contFace"
+				android:layout_width="match_parent"
+				android:layout_height="wrap_content">
+			</FrameLayout>
+		</ScrollView>
+	</LinearLayout>
+
+	<LinearLayout
+		android:layout_width="match_parent"
+		android:layout_height="0dp"
+		android:orientation="horizontal"
+		android:layout_weight="1"
+		android:visibility="gone">
+
+		<gson_parser.UiInputWidget
+			android:orientation="vertical"
+			android:id="@+id/uiServerM"
+			app:uiLabel = "Сервер"
+			app:uiSuffix="sfx"
+			app:uiNoTab="false"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:layout_marginTop="8dp"
+			android:layout_marginLeft="@dimen/_margin_txt"
+			android:layout_marginRight="@dimen/_margin_txt"/>
+
+		<gson_parser.UiInputWidget
+			android:orientation="vertical"
+			android:id="@+id/uiPortM"
+			app:uiLabel = "Порт"
+			app:uiNoTab = "true"
+			android:layout_width="0dp"
+			android:layout_height="wrap_content"
+			android:layout_weight="1"
+			android:layout_marginTop="8dp"
+			android:layout_marginLeft="@dimen/_margin_txt"
+			android:layout_marginRight="@dimen/_margin_txt"/>
+	</LinearLayout>
 
 </LinearLayout>

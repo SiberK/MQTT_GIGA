@@ -41,8 +41,8 @@ public class LayoutBuilder{
   private volatile 		boolean    		flTouch  = false		;
   private SubMenu						subMenu					;
   //==============================================================================
-  public LayoutBuilder(Context context){
-	this.context = context;
+  public LayoutBuilder(Context cntxt){
+	context = cntxt;
 	AssetManager mgr = context.getAssets();
 	try{
 	  fontAwesome = Typeface.createFromAsset(mgr, "fonts/fa_solid_900.ttf");

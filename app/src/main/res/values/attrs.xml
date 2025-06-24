@@ -1,14 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-	<declare-styleable name="CompositeButton">
-		<!-- Основной текст -->
-		<attr name="mainText" format="string" />
-		<attr name="mainTextColor" format="color" />
-		<attr name="mainTextSize" format="dimension" />
+	<declare-styleable name="UiWidget">
+		<attr name="uiId"       format="string" />
+		<attr name="uiType"     format="string" />
+		<attr name="uiText"     format="string" />
+		<attr name="uiValue"    format="string" />
+		<attr name="uiLabel"    format="string" />
+		<attr name="uiSuffix"   format="string" />
+		<attr name="uiHint"     format="string" />
+		<attr name="uiIcon"     format="string" />
+		<attr name="uiSingleLine" format="string" />
 
-		<!-- Дополнительный текст -->
-		<attr name="extraText" format="string" />
-		<attr name="extraTextColor" format="color" />
-		<attr name="extraTextSize" format="dimension" />
+		<attr name="uiAlign"    format="integer" />
+		<attr name="uiColor"    format="integer" />
+		<attr name="uiFsize"    format="integer" />
+		<attr name="uiWwidth"   format="integer" />
+
+		<attr name="uiSquare"   format="boolean" />
+		<attr name="uiNoLabel"  format="boolean" />
+		<attr name="uiNoTab"    format="boolean" />
+
+		<attr name="labelSize"  format="integer" />
+
 	</declare-styleable>
 </resources>

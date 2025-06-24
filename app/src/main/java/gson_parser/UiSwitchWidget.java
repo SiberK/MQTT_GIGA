@@ -45,6 +45,6 @@ public class UiSwitchWidget extends UiWidget{
   //----------------------------------------------------------------
   @Override  public boolean isChecked(){ return mSwitch != null ? mSwitch.isChecked() : false	;}
   //----------------------------------------------------------------
-  @Override public CharSequence getText(){ return mText   ;}
+  @Override public String getText(){ return mText   ;}
   //----------------------------------------------------------------
 }

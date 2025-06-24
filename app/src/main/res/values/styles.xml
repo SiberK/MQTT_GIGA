@@ -3,7 +3,7 @@
     <style name="AccountItemStyle">
         <item name="android:layout_margin">1dp</item>
         <item name="android:background">?attr/selectableItemBackground</item>
-        <item name="android:padding">1dp</item>
+        <item name="android:padding">12dp</item>
     </style>
     <style name="DeviceButtonStyle" parent="Widget.MaterialComponents.Button">
         <item name="android:textSize">40px</item>

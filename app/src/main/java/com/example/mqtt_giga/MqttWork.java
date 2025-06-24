@@ -126,8 +126,11 @@ public class MqttWork implements MqttCallbackExtended{
 	if(mqttClient.isConnected() && listPfx != null)
 	  for(String pfx : listPfx) subscribeToDevice(pfx)	;}
   //---------------------------------------------------------------
-  private void subscribeToDevice(String pfx) {
+  public void subscribeToDevice(String pfx) {
 	if(noEmpty(pfx)) subscribeToTopic(pfx + "/#")  ;}
+  //---------------------------------------------------------------
+  public void unsubscribeToDevice(String pfx) {
+	if(noEmpty(pfx)) unsubscribeToTopic(pfx + "/#")  ;}
   //---------------------------------------------------------------
   public void start(){
 	if(mqttClient == null || !mqttClient.isConnected()){
@@ -177,10 +180,25 @@ public class MqttWork implements MqttCallbackExtended{
   //---------------------------------------------------------------
   // Подписка на тему
   private void subscribeToTopic(String topic) {
-	try { if(mqttClient.isConnected())	mqttClient.subscribe(topic, 0);
+	try { if(mqttClient.isConnected()){
+	  			mqttClient.subscribe(topic, 0)				;
+			  	Log.i(TAG,"Subscribe to "+topic)			;}
+	  		else{
+				Log.i(TAG,"неудача")						;
+			}
 	} catch (MqttException | IllegalArgumentException e) {
 	  Log.e(TAG, "Ошибка подписки на тему", e)				;
 	  reportBr("message","Ошибка подписки на тему " + e)	;
+	}
+  }
+  //---------------------------------------------------------------
+  private void unsubscribeToTopic(String topic) {
+	try { if(mqttClient.isConnected()){
+	  mqttClient.unsubscribe(topic)				;
+	  Log.i(TAG,"UnSubscribe to "+topic)			;}
+	} catch (MqttException | IllegalArgumentException e) {
+	  Log.e(TAG, "Ошибка отписки от темы", e)				;
+	  reportBr("message","Ошибка отписки от темы " + e)	;
 	}
   }
   //---------------------------------------------------------------
@@ -206,7 +224,7 @@ public class MqttWork implements MqttCallbackExtended{
 	if(listPfx != null) for(String pfx : listPfx) subscribeToDevice(pfx)		;
 
 	reportBr("state","Соединение завершено " + serverURI)          ;
-	reportW(String.format("Соединение завершено  %s",mqttClient.isConnected() ? "conn" : "no conn"))	;
+	reportW(java.lang.String.format("Соединение завершено  %s", mqttClient.isConnected() ? "conn" : "no conn"))	;
 //	LogW("Соединение завершено "+ (mqttClient.isConnected() ? "conn" : "no conn"))	;
   }
   //---------------------------------------------------------------------------------
@@ -214,8 +232,8 @@ public class MqttWork implements MqttCallbackExtended{
   public void connectionLost(Throwable cause){
 	Log.w(TAG, "Потеря соединения " + cause.getMessage(), cause);
 	flReconnect = true	;
-	reportBr("state",String.format("Потеря соединения  %s",mqttClient.isConnected() ? "conn" : "no conn"))	;
-	reportW(String.format("Потеря соединения  %s",mqttClient.isConnected() ? "conn" : "no conn"))	;
+	reportBr("state", java.lang.String.format("Потеря соединения  %s", mqttClient.isConnected() ? "conn" : "no conn"))	;
+	reportW(java.lang.String.format("Потеря соединения  %s", mqttClient.isConnected() ? "conn" : "no conn"))	;
 
 //	  try{
 //         mqttClient.reconnect()    ;
@@ -238,7 +256,7 @@ public class MqttWork implements MqttCallbackExtended{
 	Log.i(TAG,LogStrMsg)               	;
 
 	try{
-	  if(!StrMsg.isEmpty() && StrMsg.length() < 5000 && CheckBracket){
+	  if(StrMsg != null && StrMsg.length() < 5000 && CheckBracket){
 		Message msg = new Message(topic,StrMsg)  			;// определим тип сообщения
 		report = msg.report()	;
 		Log.i(TAG, "topic:" + topic + "  type:" + msg.getType())			;
@@ -304,12 +322,8 @@ public class MqttWork implements MqttCallbackExtended{
   }
   //---------------------------------------------------------------
   public static void workMqtt(String typeMsg,String pfx,String devUID){
-	if(noEmpty(typeMsg)){
-	  Message msg = new Message(typeMsg, pfx, devUID, UserUID);
-	  if(!msg.getTopic().isEmpty())
-	    publishMessage(msg.getTopic(), msg.getMsg())	;
-	}
-  }
+    Message msg = new Message(typeMsg, pfx, devUID, UserUID)			;
+  	if(msg.topicNoEmpty()) publishMessage(msg.getTopic(), msg.getMsg())	;}
   //---------------------------------------------------------------
   private void reportBr(@NonNull String ... str){
 	if(myCallback != null){
@@ -322,7 +336,7 @@ public class MqttWork implements MqttCallbackExtended{
   private void reportW(String str){
 	if(myCallback != null){
 	  StackTraceElement ste = Thread.currentThread().getStackTrace()[3];
-	  str = String.format("[%s:%-4d] %s",ste.getMethodName(),ste.getLineNumber(),str)		;
+	  str = java.lang.String.format("[%s:%-4d] %s",ste.getMethodName(),ste.getLineNumber(),str)		;
 	  myCallback.onReportW(str);	;}
   }
   //---------------------------------------------------------------
@@ -340,13 +354,11 @@ public class MqttWork implements MqttCallbackExtended{
 //-------------------------------------------------------------------
   // ЗАПРОСЫ
   public Message(String typeMsg, String pfx, String devUID, String userUID){
-	if(noEmpty(typeMsg)){
-	  try{ type = TypeMsg.valueOf(typeMsg)	;
-	  } catch(IllegalArgumentException e){type = TypeMsg.isEmpty;}
-	}
+	if(!noEmpty(typeMsg)) typeMsg = "find"	;
+	try{ type = TypeMsg.valueOf(typeMsg)	;
+	} catch(IllegalArgumentException e){type = TypeMsg.isEmpty;}
 	set(pfx, userUID, devUID);
   }
-
   // ОТВЕТЫ
   public Message(String tpc, String ms){
 	topic = tpc		; msg  = ms		; type  = TypeMsg.isEmpty	;
@@ -362,6 +374,8 @@ public class MqttWork implements MqttCallbackExtended{
 
 	if(!topic.isEmpty()) parts = topic.split("/")	;
 	if(parts != null){
+	  if(parts.length == 1 && noEmpty(ms)) type = TypeMsg.find	;
+
 	  if(parts.length > 1) devPfx = parts[0]		;
 
 	  if(parts.length > 3){
@@ -383,6 +397,9 @@ public class MqttWork implements MqttCallbackExtended{
 		else if(parts.length > 4 && parts[4].equals("set")){
 			srcUid = parts[2]	; type = TypeMsg.set		;
 			dstUid = parts[1]	;}
+		else if(parts[3].equals("ui")){
+			  srcUid = parts[2]	; type = TypeMsg.get_ui		;
+			  dstUid = parts[1]	;}
 	  }
 	}
 
@@ -397,17 +414,17 @@ public class MqttWork implements MqttCallbackExtended{
 
   //---------------------------------------------------------------------------------
   public void set(String pfx, String userUid, String devUid){
-	msg     = ""	;topic = ""	;
+	msg     = ""	; topic = ""	;
 	switch(type){
 	  case find:	if(noEmpty(pfx) && noEmpty(userUid)){ topic = pfx	; msg = userUid;}
 		break	;
 
 	  case ping:	if(noEmpty(pfx) && noEmpty(userUid) && noEmpty(devUid))
-						topic = String.format("%s/%s/%s/ping",pfx,devUid,userUid)	;
+						topic = java.lang.String.format("%s/%s/%s/ping",pfx,devUid,userUid)	;
 		break	;
 
 	  case get_ui:	if(noEmpty(pfx) && noEmpty(userUid) && noEmpty(devUid))
-						topic = String.format("%s/%s/%s/ui",pfx,devUid,userUid)	;
+						topic = java.lang.String.format("%s/%s/%s/ui",pfx,devUid,userUid)	;
 	  				// если devUid неизвестен, то даём команду "find" !!!
 	  				else if(noEmpty(pfx) && noEmpty(userUid)){ topic = pfx	; msg = userUid;}
 		break	;
@@ -422,12 +439,6 @@ public class MqttWork implements MqttCallbackExtended{
 	return ping	;}
 
 	//-------------------------------------------------------------------
-	public static String getFind(String prefix, String userUID){
-	  String find = ""	;// topic: Boil_9140 	msg: d760bb65
-
-	  return find			;}
-
-	//-------------------------------------------------------------------
   public String getTopic()	{ return topic  == null ? "" : topic	;}
   public String getMsg()	{ return msg    == null ? "" : msg		;}
   public String getDevPfx()	{ return devPfx == null ? "" : devPfx	;}
@@ -438,6 +449,7 @@ public class MqttWork implements MqttCallbackExtended{
   public String report(){
 		return java.lang.String.format("%s:%s (%d bytes)",getDevPfx(),getType(),getMsg().length())	;}
 
+  public boolean topicNoEmpty(){ return noEmpty(topic)			;}
 	//================================================================================
   public enum TypeMsg{
 	// ответ на ping

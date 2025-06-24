@@ -50,6 +50,9 @@ public class UiElement{
   	public int getTextAlignment()	{ return getTextAlignment(align)	;}
   	public boolean getChecked()		{ return getStrValue(value).equals("1");}
   	public void setType(String val)	{ type = getStrValue(val)			;}
+
+  	public UiElement setNoTab(int val)  { notab = val	; return this	;}
+  	public UiElement setIcon(String val){ icon  = val	; return this	;}
 //=======================================================================
   public static String getIcChar(String val){
   	if(!noEmpty(val)) val = ""	;
@@ -72,7 +75,12 @@ public static int getTextAlignment(String align){
 		 al == 1 ? TextView.TEXT_ALIGNMENT_CENTER     :
 		 al == 2 ? TextView.TEXT_ALIGNMENT_VIEW_END   : TextView.TEXT_ALIGNMENT_CENTER  ;}
 //====================================================================================
-	public UiElement(){}
+  public UiElement(){}
+  public UiElement(String _id,String _type,String _val,String _lbl,int _fz,int _wdt){
+		id = _id		; type  = _type			;
+		value = _val	; label = _lbl			;
+		fsize = _fz		; wwidth = _wdt			;
+  }
   //========================================================================
   public UiElement(String _id,JsonObject obj){
 	// Заполнение полей для update!!!

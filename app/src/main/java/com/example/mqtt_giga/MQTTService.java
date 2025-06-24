@@ -23,6 +23,8 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 
+import static com.example.mqtt_giga.MqttWork.noEmpty;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -311,6 +313,8 @@ public class MQTTService extends Service{
 //	}
   }
   //---------------------------------------------------------------
+  private void setSelRing(String val){ if(noEmpty(val)) strSelRing = val	;}
+  //---------------------------------------------------------------
   private void Alarm(){
 	if(strSelRing != null && !strSelRing.isEmpty()){
 	  try{
@@ -330,22 +334,20 @@ public class MQTTService extends Service{
 	private final BroadcastReceiver receiver = new BroadcastReceiver() {
 	  @Override
 	  public void onReceive(Context context, @NonNull Intent intent) {
-		if(intent.getAction().equals("TO_MQTT_SERVICE")) {
+		if(intent.getAction().equals("TO_MQTT_SERVICE")){
 //                subscribeToDevice(intent.getStringExtra("prefix"));
-		  String devUid = intent.getStringExtra("dev_uid")			;
-		  String devPfx = intent.getStringExtra("prefix")			;
-		  String typeMsg= intent.getStringExtra("type_msg")			;
-		  if(typeMsg == null || typeMsg.isEmpty()) return			;
-
-		  switch(typeMsg){
-			case "find": workerMqtt.findDevice(devPfx)		; break	;
-			default: workerMqtt.workMqtt(typeMsg,devPfx,devUid)	; break	;
-		  }
-
-		  workerMqtt.fillListPingPfx(intent.getStringExtra("fill_list_ping"))  ;
+		  String devUid  = intent.getStringExtra("dev_uid")		;
+		  String devPfx  = intent.getStringExtra("prefix")		;
+		  String typeMsg = intent.getStringExtra("type_msg")	;
+		  workerMqtt.workMqtt(typeMsg, devPfx, devUid)			;
+		  workerMqtt.fillListPingPfx(intent.getStringExtra("fill_list_ping"));
+		  workerMqtt.unsubscribeToDevice(intent.getStringExtra("unsubscribe"))	;
+		  workerMqtt.subscribeToDevice  (intent.getStringExtra("subscribe"))	;
+		  setSelRing(intent.getStringExtra("SEL_RINGTONE"))		;
 
 		  updateNotification(intent.getStringExtra("noti_title"),
-				  			 intent.getStringExtra("noti_text"))	;
+							 intent.getStringExtra("noti_text"))		;// ????????????? TODO
+
 		}
 	  }
 	};

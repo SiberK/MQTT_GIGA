@@ -6,6 +6,12 @@ android {
     namespace 'com.example.mqtt_giga'
     compileSdk 35
 
+    dataBinding {
+        enabled = true
+    }
+    buildFeatures {
+        dataBinding true
+    }
     defaultConfig {
         applicationId "com.example.mqtt_giga"
         minSdk 23
