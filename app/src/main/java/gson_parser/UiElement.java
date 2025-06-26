@@ -60,7 +60,10 @@ public class UiElement{
 	return val												;}
   //=======================================================================
   public static int getIntValue(String str, int val){
-	try{ val = Integer.parseInt(str);} catch(NumberFormatException e){}
+	if(noEmpty(str))
+		str = str.replaceAll("[^0-9]", "").trim()				;
+	if(noEmpty(str))
+		try{ val = Integer.parseInt(str);} catch(NumberFormatException e){}
 	return val       ;}
   //=======================================================================
   public static boolean getBoolValue(String str, boolean val){

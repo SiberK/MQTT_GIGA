@@ -168,6 +168,7 @@ public class UiWidget extends LinearLayout {
   public void setText(String text) { if(text == null) text = ""	; mText = text	;}
   //--------------------------------------------------------------
   public void setValue(String val){}
+  public void setValue(int val){ setValue("" + val)	;}
   //--------------------------------------------------------------
   public void setIcon(String val){ icChar = val	;}
   //--------------------------------------------------------------
@@ -230,6 +231,8 @@ public class UiWidget extends LinearLayout {
   //============================================================
   public String getLabel()  { return tvLabel.getText().toString()	;}
   public String getSuffix() { return tvSuffix.getText().toString()	;}
+  public String getValue()	{ return mValue	;}
+  public int 	getValueInt(){ return Integer.parseInt(mValue)		;}
   //============================================================
   public static void setFontAwesome(Context ctx){
 	if(fontAwesome == null){
@@ -265,7 +268,7 @@ public class UiWidget extends LinearLayout {
 	  // Устанавливаем значения из атрибутов
 	  str = a.getString (R.styleable.UiWidget_uiId)		; if(noEmpty(str)) mUiId = str		;
 	  str = a.getString (R.styleable.UiWidget_uiType)	; if(noEmpty(str)) mType = str		;
-	  str = a.getString (R.styleable.UiWidget_uiText)	; if(noEmpty(str)) mText = str		;
+	  str = a.getString (R.styleable.UiWidget_uiText)	; if(noEmpty(str)) spText = mText = str		;
 	  str = a.getString (R.styleable.UiWidget_uiValue)	; if(noEmpty(str)) mValue = str		;
 	  str = a.getString (R.styleable.UiWidget_uiHint)	; if(noEmpty(str)) mHint = str		;
 	  str = a.getString (R.styleable.UiWidget_uiLabel)	; if(noEmpty(str)) setLabel(str)	;

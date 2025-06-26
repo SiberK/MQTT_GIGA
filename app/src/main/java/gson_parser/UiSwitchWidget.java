@@ -32,9 +32,8 @@ public class UiSwitchWidget extends UiWidget{
   }
   //----------------------------------------------------------------
   private void onClicked(){
-	String _name = getTag().toString()	    ;
 	String _value = mSwitch.isChecked() ? "1" : "0"	;
-	if(onWorkListener != null) onWorkListener.onWork(mType,_name,_value);
+	if(onWorkListener != null) onWorkListener.onWork(mType,mUiId,_value);
   }
   //=========================================================================
   @Override public void setTextSize(int sizeDp){

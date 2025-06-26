@@ -140,6 +140,7 @@ public class MqttWork implements MqttCallbackExtended{
 	  try{ connectToBroker()						;
 	  } catch(MqttException e){
 		Log.e(TAG, "Ошибка подключения к брокеру", e);
+		reportBr("message","Ошибка подключения к брокеру")	;
 	  }
 	}
   }
@@ -164,8 +165,8 @@ public class MqttWork implements MqttCallbackExtended{
 	if(noEmpty(login) && noEmpty(password)){
 	  connOpts.setUserName(login)						;
 	  connOpts.setPassword(password.toCharArray())		;}
-	mqttClient.connect(connOpts)						;
 	mqttClient.setCallback(this)						;
+	mqttClient.connect(connOpts)						;
 	subscribeTopics()									;
 	Log.d(TAG, "Connected to broker")					;
 	reportBr("user_uid",UserUID,"state","Connected to broker")	;
@@ -261,7 +262,7 @@ public class MqttWork implements MqttCallbackExtended{
 		report = msg.report()	;
 		Log.i(TAG, "topic:" + topic + "  type:" + msg.getType())			;
 
-		if(msg.getType() == Message.TypeMsg.update){
+		if(msg.getType() == Message.TypeMsg.update && noEmpty(codeWord)){
 		  devPfx   = msg.getDevPfx()               		;
 		  StrAlarm = new MyParserJson(StrMsg).GetKey("updates,"+codeWord)	;
 		  if(noEmpty(StrAlarm))
@@ -321,6 +322,7 @@ public class MqttWork implements MqttCallbackExtended{
 	publishMessage(tpc,msg)							;
   }
   //---------------------------------------------------------------
+  //---------------------------------------------------------------
   public static void workMqtt(String typeMsg,String pfx,String devUID){
     Message msg = new Message(typeMsg, pfx, devUID, UserUID)			;
   	if(msg.topicNoEmpty()) publishMessage(msg.getTopic(), msg.getMsg())	;}
@@ -340,6 +342,8 @@ public class MqttWork implements MqttCallbackExtended{
 	  myCallback.onReportW(str);	;}
   }
   //---------------------------------------------------------------
+  public void setCodeWord(String val){ if(val != null) codeWord = val	;}
+
 
   //---------------------------------------------------------------------------------
   public static class Message{
@@ -435,7 +439,7 @@ public class MqttWork implements MqttCallbackExtended{
   public static String getPing(String pfx,String devUid,String userUid){
 	String ping = ""	;// topic: Boil_9140/a470ab51/d760bb65/ping
 	if(noEmpty(pfx) && noEmpty(userUid) && noEmpty(devUid))
-	  ping = java.lang.String.format("%s/%s/%s/ping",pfx, devUid, userUid)	;
+	  ping = String.format("%s/%s/%s/ping",pfx, devUid, userUid)	;
 	return ping	;}
 
 	//-------------------------------------------------------------------

@@ -37,6 +37,8 @@ import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.drawable.DrawableCompat;
 
+import static com.example.mqtt_giga.MainActivity.sendBroadcastTo;
+import static com.example.mqtt_giga.MqttWork.noEmpty;
 import com.google.android.material.button.MaterialButton;
 
 import java.util.ArrayList;
@@ -48,25 +50,23 @@ import accountmanagerlib.AccountUiManager;
 import gson_parser.UiButtonWidget;
 import gson_parser.UiElement;
 import static gson_parser.UiElement.getIcChar;
+import static gson_parser.UiElement.getIntValue;
 import gson_parser.UiInputWidget;
+import gson_parser.UiSelectWidget;
 import gson_parser.UiWidget;
 //---------------------------------------------------------------
 public class SettingsActivity extends AppCompatActivity
 		implements AccountUiManager.AccountActionListener  {
 
   private static final String TAG = "M_SETT";
-//  private TextView	tvAccount   ;
-//  private TextView  tvStart		;
-//  private EditText	etDevPfx    ;
-//  private EditText	etCodeWord  ;
-//  private TextView	tvUid   	;
-//  private TextView	tvSound     ;
-
   private UiButtonWidget uiAccount	;
   private UiButtonWidget uiStart	;
   private UiButtonWidget uiSound	;
   private UiInputWidget  uiDevPfx	;
   private UiInputWidget  uiCodeWord	;
+  private UiSelectWidget uiPing		;
+  private int       mPingPosition	;
+  private int		mTimePing		;
 
   private Uri		uriSound    ;
   private String	strSound    ;
@@ -78,7 +78,6 @@ public class SettingsActivity extends AppCompatActivity
   private AccountUiManager     	accUiManager;
   private AccManager.Account 	curAccount  ;
   private ActionBar  			actionBar   ;
-  //private MaterialButton 		btnStart	;
   private MediaPlayer 			mediaPlayer	;
   private SoundPickerDialogFragment soundPickerDialog;
   //---------------------------------------------------------------
@@ -89,7 +88,8 @@ public class SettingsActivity extends AppCompatActivity
 	  textView = findViewById(R.id.tvMsg)               ; textView.setText(intent.getStringExtra("message"	))			;
 	  textView = findViewById(R.id.tvStat)              ; textView.setText(intent.getStringExtra("state"	))			;
 	  textView = findViewById(R.id.tvAlarm)             ; textView.setText("Alarm: " + intent.getStringExtra("alarm"))	;
-	  if(intent.getStringExtra("user_uid") !=null){ uiAccount.setSuffix("ID: " + (user_uid = intent.getStringExtra("user_uid")))	;}
+	  String str = intent.getStringExtra("user_uid")	;
+	  if(noEmpty(str) && uiAccount != null) uiAccount.setSuffix("ID: " + (user_uid = str))	;
 	}
   };
 
@@ -113,90 +113,54 @@ public class SettingsActivity extends AppCompatActivity
 	// Инициализация элементов интерфейса
 	//	Выбор аккаунта
 	uiAccount = findViewById(R.id.uiAccount)	;
+	uiAccount.setOnClickListener(v->onClickAccountDlg())	;
 	uiStart   = findViewById(R.id.uiStart)		;
 	uiStart.setOnClickListener(v->onClickStartStopService())	;
 
-//	ly = findViewById(R.id.uiAccount)			;
-//	ly.setOnClickListener(v->onClickAccountDlg())	;
-//	tv    = ly.findViewById(R.id.tvLabel)		; tv.setText("ACCOUNT")		;
-//	tvUid = ly.findViewById(R.id.tvSuffix)		; tvUid.setText("")			;
-//	tvAccount = ly.findViewById(R.id.tvText)	;
-//	// Старт/Стоп сервиса
-//	ly = findViewById(R.id.uiStart)				;
-//	ly.setOnClickListener(v->onClickStartStopService())				;
-//	tv = ly.findViewById(R.id.tvLabel)			; tv.setText("SERVICE")		;
-//	tvStart = ly.findViewById(R.id.tvText)		; tvStart.setText("START")	;
-
 	// Поиск устройства
 	uiDevPfx = findViewById(R.id.uiDevice)		;
-//	uiDevPfx.setOnClickListener(v->onClickAddDevice())	;
 	UiButtonWidget uiBtn = findViewById(R.id.uiFind)			;
 	uiBtn.setOnClickListener(v->onClickAddDevice())		;
-
-//	ly = findViewById(R.id.uiDevice)			;
-//	tv = ly.findViewById(R.id.tvLabel)			; tv.setText("DEVICE")		;
-//	etDevPfx = ly.findViewById(R.id.etText)		;
-//	ly = findViewById(R.id.uiFind)				;
-//	ly.setOnClickListener(v->onClickAddDevice())	;
-//	tv = ly.findViewById(R.id.tvText)			; tv.setText("")			;
-//	try{
-//	  AssetManager mgr = getAssets()			;
-//	  String icChar = getIcChar("f00e")			;
-//	  Typeface fontAwesome = Typeface.createFromAsset(mgr, "fonts/fa_solid_900.ttf");
-//	  tv.setTypeface(fontAwesome)				; tv.setText(icChar)		;
-//	  tv.setTextSize(30)						;
-//	} catch(Exception e){Log.w(TAG, "", e)		;}
 
 	// Выбор отслеживаемого параметра
 	uiCodeWord = findViewById(R.id.uiCodeword)	;
 	uiBtn      = findViewById(R.id.uiOkKey)		;
 	uiBtn.setOnClickListener(v->onClickOkCodeword(uiCodeWord.getText()))	;
 
-//	ly = findViewById(R.id.uiCodeword)			;
-//	tv = ly.findViewById(R.id.tvLabel)			; tv.setText("Отслеживать параметр")		;
-//	etCodeWord = ly.findViewById(R.id.etText)	;
-//	ly = findViewById(R.id.uiOkKey)				;
-//	tv = ly.findViewById(R.id.tvText)			; tv.setText("OK")			;
-//	ly.setOnClickListener(v->onClickOkCodeword(etCodeWord.getText()))	;
-
 	// Выбор звука
 	uiSound = findViewById(R.id.uiSelectSound)	;
 	uiSound.setOnClickListener(v->onSoundDialog())	;
-//	ly = findViewById(R.id.uiSelectSound)		;
-//	tv = ly.findViewById(R.id.tvLabel)			; tv.setText("Звук уведомления")		;
-//	tvSound = ly.findViewById(R.id.tvText)		;
-//	ly.setOnClickListener(v->onSoundDialog())	;
 
-//  TODO TODO
-//	ly = findViewById(R.id.lySound)				;
-//	UiElement uiE = new UiElement("uiSound","label","","",20,4)				;
-////	uiE.setNoTab(1)				;
-//	UiButtonWidget uiSound = (UiButtonWidget)UiWidget.create(this,uiE,LinearLayout.HORIZONTAL)		;
-//	uiSound.setOnClickListener(v->onSoundDialog());
-//	ly.addView(uiSound)	;
+	uiPing = findViewById(R.id.uiPing)			;
+//	uiPing.setOnWorkListener((typ,nam,val)->onPingSelect(typ,nam,val))		;
+	uiPing.setOnSelectListener((pos,str)->onPingSelect(pos,str))	;
 
 	actionBar = getSupportActionBar() 			;
 	colorConn = ContextCompat.getColor(this, R.color.colorTitleConnected)     ; // Безопасное получение цветаColor.rgb(0x50,0x50,0xFF)	 		;
 	colorDis  = ContextCompat.getColor(this, R.color.colorTitleDisconnected)  ; // Безопасное получение цветаColor.rgb(0xFF,0x50,0x50)			;
 
 	accUiManager = new AccountUiManager(this,this);
-	loadSettings()                              ; // Загрузка сохраненных настроек
-	flStartStop = MQTTService.isRunning         ;
-	uiStart.setText(flStartStop ? "СТОП" : "СТАРТ")    ;
+	loadSettings()                              		; // Загрузка сохраненных настроек
+	flStartStop = MQTTService.isRunning         		;
+	uiStart.setText(flStartStop ? "СТОП" : "СТАРТ")    	;
 	startStopColor()  ;
   }
   //-------------------------------------------------------------------
+  private void onPingSelect(int pos, String val){
+	mPingPosition = pos									;
+	mTimePing	  = getIntValue(val,0)					;
+	saveSettings()										;
+	sendBroadcastTo(this,"TO_MAIN","PingSelect",val)  	;}
+  //-------------------------------------------------------------------
   private void onClickAccountDlg(){	if(!flStartStop) accUiManager.showAccountsList();}
   //-------------------------------------------------------------------
-  private void onClickOkCodeword(String text){}	// TODO TODO
+  private void onClickOkCodeword(String text){sendBroadcastTo(this,"TO_MQTT_SERVICE","CODE_WORD",text)	;}	// TODO TODO
   //-------------------------------------------------------------------
   private void onClickStartStopService(){
-	flStartStop ^= true                                 ;
+	flStartStop ^= true                                ;
 	uiStart.setText(flStartStop ? "СТОП" : "СТАРТ")    ;
 	saveSettings()  ;
-	Intent broadcastIntent = new Intent("TO_MAIN")      ;// Отправка данных в активность
-	broadcastIntent.putExtra("start_stop",flStartStop ? "start" : "stop")  ;
-	sendBroadcast(broadcastIntent)                      ;
+	sendBroadcastTo(this,"TO_MAIN","start_stop",flStartStop ? "start" : "stop")  ;
 	startStopColor()  ;}
   private void startStopColor(){
 	if(actionBar != null)
@@ -204,10 +168,7 @@ public class SettingsActivity extends AppCompatActivity
   //---------------------------------------------------------------
   private void onClickAddDevice() {
 	String devPfx = uiDevPfx != null ? uiDevPfx.getText().toString() : ""   ;
-	Intent broadcastIntent = new Intent("TO_MAIN")      ;// Отправка данных в активность
-	broadcastIntent.putExtra("device",devPfx)           ;
-	sendBroadcast(broadcastIntent)                      ;
-  }
+	sendBroadcastTo(this,"TO_MAIN","device",devPfx)           				;}
   //---------------------------------------------------------------
   @Override protected void onDestroy() {
 	stopPlaying()				;
@@ -234,9 +195,7 @@ public class SettingsActivity extends AppCompatActivity
 	soundTitle = sndName			;
 	uiSound.setText(soundTitle)  	;
 	saveSettings()					;
-	Intent broadcastIntent = new Intent("TO_MQTT_SERVICE") 	;// Отправка данных в активность
-	broadcastIntent.putExtra("SEL_RINGTONE",strSound)  		;
-	sendBroadcast(broadcastIntent)          				;
+	sendBroadcastTo(this,"TO_MQTT_SERVICE","SEL_RINGTONE",strSound)	;
 	Log.i(TAG,"select sound: " + soundTitle)				;
   }
   private void playSound(Uri soundUri) {
@@ -268,6 +227,7 @@ public class SettingsActivity extends AppCompatActivity
 	}
 	String strListPing = TextUtils.join("," , listPing)     ;
 	String strListPfx  = TextUtils.join("," , listPfx)      ;
+	mPingPosition 	   = uiPing.getValueInt()				;
 
 	if(uriSound != null)  strSound = uriSound.toString()    ;
 	getSharedPreferences("MQTT_SETTINGS", MODE_PRIVATE)
@@ -284,6 +244,8 @@ public class SettingsActivity extends AppCompatActivity
 			.putString("LIST_PING"  , strListPing)
 			.putString("LIST_PFX"   , strListPfx)
 			.putBoolean("START"     , flStartStop)
+			.putInt ("PING_POSITION", mPingPosition)
+			.putInt ("TIME_PING"	, mTimePing)
 			.apply();
   }
   //---------------------------------------------------------------
@@ -300,8 +262,9 @@ public class SettingsActivity extends AppCompatActivity
 	user_uid     		= prefs.getString("USER_UID"    , "")       ;
 	strSound            = prefs.getString("SEL_RINGTONE", "")       ;
 	soundTitle			= prefs.getString("SOUND_TITLE" , "")       ;
-	uriSound            = Uri.parse(strSound);
-	String strPort = String.valueOf(port)   ;
+	mPingPosition		= prefs.getInt   ("PING_POSITION",0)		;
+	uriSound            = Uri.parse(strSound)	;
+	String strPort = String.valueOf(port)   	;
 
 	curAccount = new Account(serverAddress, strPort, login, password)    ;
 	uiAccount .setText(curAccount.toString())	;
@@ -309,6 +272,7 @@ public class SettingsActivity extends AppCompatActivity
 	uiCodeWord.setText(codeWord)  				;
 	uiAccount .setSuffix("ID: " + user_uid)		;
 	uiSound   .setText(soundTitle)  			;
+	uiPing	  .setValue(mPingPosition)			;
   }
   //---------------------------------------------------------------
   @Override public void onAccountSelected(Account _account) {

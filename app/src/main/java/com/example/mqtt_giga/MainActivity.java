@@ -48,7 +48,10 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.List;
+import java.util.Timer;
+import java.util.TimerTask;
 
+import static gson_parser.UiElement.getIntValue;
 import gson_parser.UiWidget;
 
 //---------------------------------------------------------------
@@ -76,9 +79,10 @@ public class MainActivity extends AppCompatActivity{
   	private MenuItem			miRfrsh				;
   	private SubMenu 			subMenu				;
   	private ActionBar 			actionBar			;
-  	private  int 				colorConn 			;
-  	private  int				colorDis  			;
-
+  	private int 				colorConn 			;
+  	private int					colorDis  			;
+    private int   				mTimPing = 0		;
+	private Timer 				timerPing       	;
   //---------------------------------------------------------------
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -105,6 +109,9 @@ public class MainActivity extends AppCompatActivity{
 
 	  SharedPreferences prefs = getSharedPreferences("MQTT_SETTINGS", MODE_PRIVATE);
 	  flStartMqtt   = prefs.getBoolean("START",false)     	;
+	  mTimPing		= prefs.getInt("TIME_PING",0)			;
+	  mqttUid  		= prefs.getString("USER_UID", "")       ;
+
 	  serviceIntent = new Intent(this, MQTTService.class)	;
 	  startStopServiceMqtt(flStartMqtt)						;
 	}
@@ -112,6 +119,7 @@ public class MainActivity extends AppCompatActivity{
   @Override protected void onDestroy() {
 	super.onDestroy()           ;
 	if(receiver != null) unregisterReceiver(receiver)   ; // Отмена регистрации ресивера
+	startStopTimerPing(false)	;
   }
   //=====================================================================
   private void startStopServiceMqtt(boolean flStart){
@@ -134,6 +142,7 @@ public class MainActivity extends AppCompatActivity{
 	if(miMenu   != null) miMenu  .setVisible(false)				;
 	if(miSettings != null) miSettings.setVisible(true)			;
 	setTitle("")	;
+	startStopTimerPing(false)	;
   }
   private void onClickBuild(){// это для теста
 	if(btnContainer != null)	btnContainer.removeAllViews()		; // Очистка предыдущих кнопок
@@ -161,12 +170,37 @@ public class MainActivity extends AppCompatActivity{
             messageParse(intent.getStringExtra("topic"),intent.getStringExtra("message"))   ;
             addDevice(intent.getStringExtra("device"))      	;
 			setMqttUid(intent.getStringExtra("user_uid"))		;
+			setPingSelect(intent.getStringExtra("PingSelect"))	;
 
 		    String onOff = intent.getStringExtra("start_stop")	;
 			if(noEmpty(onOff)){ flStartMqtt = onOff.equals("start")	;
 				startStopServiceMqtt(flStartMqtt)				;}}
     };
-//=====================================================================
+  //=====================================================================
+    private void setPingSelect(String val){
+	  if(val != null)
+		mTimPing = getIntValue(val,0)	;
+	}
+  //---------------------------------------------------------------
+  private void PingTask(){
+	  Log.i(TAG,"PingTask " + currDevPfx +" " + currDevUid)	;
+	  if(noEmpty(currDevPfx) && noEmpty(currDevUid))
+	  		sendBroadcastTo(this,"TO_MQTT_SERVICE","type_msg","ping",
+													"dev_uid",currDevUid,
+													"prefix" ,currDevPfx)	;
+  }
+  //---------------------------------------------------------------
+ //---------------------------------------------------------------
+  private void startStopTimerPing(boolean start){
+	if(start && timerPing == null && mTimPing > 1){
+	  	timerPing = new Timer() ;
+		try{ timerPing.schedule(new TimerTask(){
+		  		@Override public void run(){ PingTask()	;}}, 1000, mTimPing * 1000);
+		} catch(NullPointerException | IllegalStateException | IllegalArgumentException e){ }
+  	}
+	else if(timerPing != null){ timerPing.cancel()   ; timerPing = null  ;}
+  }
+ //=====================================================================
     private void messageParse(String topic, String message) {
         if(topic != null && message != null){
 		    boolean flRe = false	;// сохранить список устройств
@@ -222,15 +256,9 @@ public class MainActivity extends AppCompatActivity{
   public static String getCurrDevUid(){return Instance == null ? "" : Instance.currDevUid	;}
   public static String getCurrDevPfx(){return Instance == null ? "" : Instance.currDevPfx	;}
   //---------------------------------------------------------------
-  private void setMqttUid(String val){
-	  if(noEmpty(val))
-		mqttUid = val	;
-	}
-  private void fillListPing(){
-	Intent broadcastIntent = new Intent("TO_MQTT_SERVICE") 		;// Отправка данных в активность
-	broadcastIntent.putExtra("fill_list_ping","fill_list_ping")   ;
-	sendBroadcast(broadcastIntent)          			;
-  }
+  private void setMqttUid(String val){ if(noEmpty(val))	mqttUid = val	;}
+  //---------------------------------------------------------------
+  private void fillListPing(){ sendBroadcastTo(this,"TO_MQTT_SERVICE","fill_list_ping","fill_list_ping")	;}
   //---------------------------------------------------------------
     private void addDevice(String pfx) {
 	  curDevice = devManager.addDevice(pfx)   ;// если pfx не новый, то вернёт null
@@ -243,17 +271,13 @@ public class MainActivity extends AppCompatActivity{
   //---------------------------------------------------------------
 	private void removeDevice(String pfx){
 		if(devManager.removeDevice(pfx)){
-			sendBroadcastTo("TO_MQTT_SERVICE","unsubscribe",pfx)	;}
+			sendBroadcastTo(this,"TO_MQTT_SERVICE","unsubscribe",pfx)	;}
 	  	createDeviceMatButtons()				;
 		fillListPing()							;}
   //---------------------------------------------------------------
-    private void findDevice(String pfx) {
-	    sendBroadcastTo("TO_MQTT_SERVICE","type_msg","find","prefix",pfx)	;
-	}
+    private void findDevice(String pfx) { sendBroadcastTo(this,"TO_MQTT_SERVICE","type_msg","find","prefix",pfx)	;}
     //---------------------------------------------------------------
-    private void subscribeTo(String pfx) {
-	  	sendBroadcastTo("TO_MQTT_SERVICE","subscribe",pfx)	;
-	}
+    private void subscribeTo(String pfx){ sendBroadcastTo(this,"TO_MQTT_SERVICE","subscribe",pfx)	;}
 //---------------------------------------------------------------
   private void createDeviceMatButtons() {
 	MaterialButton 	btn			;
@@ -368,16 +392,17 @@ public class MainActivity extends AppCompatActivity{
 	//----------------------------------------------------------------------------
 	private void onDeviceClicked(Device device) {  // Обработка нажатия на устройство
   		Toast.makeText(this, "Выбрано: " + device.getPrefix(), Toast.LENGTH_SHORT).show();
-		sendBroadcastTo("TO_MQTT_SERVICE","prefix" ,device.getPrefix(),"dev_uid",device.getUID(),"type_msg","get_ui");
+		sendBroadcastTo(this,"TO_MQTT_SERVICE","prefix" ,device.getPrefix(),"dev_uid",device.getUID(),"type_msg","get_ui");
+	  	startStopTimerPing(true)	;
 	}
   //---------------------------------------------------------------
-  private void sendBroadcastTo(String Addr,String ... params){
+  public static void sendBroadcastTo(Context cntx,String Addr,String ... params){
 	Intent brcIntent = new Intent(Addr)		;// Отправка данных в активность
 	for(int ix=0;ix<params.length;ix+=2){
 	  if(noEmpty(params[ix]))
 		brcIntent.putExtra(params[ix],params[ix+1])	;
 	}
-	sendBroadcast(brcIntent)					;
+	cntx.sendBroadcast(brcIntent)					;
   }
   //---------------------------------------------------------------
     @Override
@@ -419,7 +444,7 @@ public class MainActivity extends AppCompatActivity{
         else if(item.getItemId() == R.id.action_cancel){
 		  	onClickRst()			; rzlt = true   			;}
         else if(item.getItemId() == R.id.action_rfrsh){
-            rzlt = true   			;}
+            PingTask()				; rzlt = true   			;}
 		else if(miMenu != null && groupId == miMenu.getItemId()){
 		  String strId = (String) miMenu.getTitle();
 		  MqttWork.onClickFaceElement("menu",strId,String.valueOf(order))	;

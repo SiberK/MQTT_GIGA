@@ -303,16 +303,6 @@ public class MQTTService extends Service{
   }
   //---------------------------------------------------------------
   //---------------------------------------------------------------
-  private void PingTask(){
-//	if(mqttClient.isConnected() && listPing.size()>0){
-//	  String msg = ""		;
-//	  // если был реконнект, то переподписаться на топики!
-//	  if(flReconnect){ flReconnect = false	; msg = "reconnect"	;
-//		/*for(String pfx : listPfx) subscribeToDevice(pfx)		;*/}
-////	  for(String ping : listPing) publishMessage(ping,msg)     	;
-//	}
-  }
-  //---------------------------------------------------------------
   private void setSelRing(String val){ if(noEmpty(val)) strSelRing = val	;}
   //---------------------------------------------------------------
   private void Alarm(){
@@ -323,6 +313,16 @@ public class MQTTService extends Service{
 		mediaPlayer.start();
 	  }catch(Exception e){ Log.e(TAG, "MediaPlayer error", e);}
 	}
+  }
+  //---------------------------------------------------------------
+  private void PingTask(){
+//	if(mqttClient.isConnected() && listPing.size()>0){
+//	  String msg = ""		;
+//	  // если был реконнект, то переподписаться на топики!
+//	  if(flReconnect){ flReconnect = false	; msg = "reconnect"	;
+//		/*for(String pfx : listPfx) subscribeToDevice(pfx)		;*/}
+////	  for(String ping : listPing) publishMessage(ping,msg)     	;
+//	}
   }
   //---------------------------------------------------------------
  //  	private TimerTask pingTask = new TimerTask(){
@@ -340,10 +340,13 @@ public class MQTTService extends Service{
 		  String devPfx  = intent.getStringExtra("prefix")		;
 		  String typeMsg = intent.getStringExtra("type_msg")	;
 		  workerMqtt.workMqtt(typeMsg, devPfx, devUid)			;
-		  workerMqtt.fillListPingPfx(intent.getStringExtra("fill_list_ping"));
+
+		  workerMqtt.fillListPingPfx	(intent.getStringExtra("fill_list_ping"));
 		  workerMqtt.unsubscribeToDevice(intent.getStringExtra("unsubscribe"))	;
 		  workerMqtt.subscribeToDevice  (intent.getStringExtra("subscribe"))	;
-		  setSelRing(intent.getStringExtra("SEL_RINGTONE"))		;
+		  workerMqtt.setCodeWord		(intent.getStringExtra("CODE_WORD"))	;
+		  setSelRing(intent.getStringExtra("SEL_RINGTONE"))						;
+
 
 		  updateNotification(intent.getStringExtra("noti_title"),
 							 intent.getStringExtra("noti_text"))		;// ????????????? TODO

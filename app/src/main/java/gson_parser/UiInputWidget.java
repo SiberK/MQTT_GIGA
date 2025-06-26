@@ -60,13 +60,13 @@ public class UiInputWidget extends UiWidget{
 	mainEText.setOnFocusChangeListener((v, hasFocus) -> {
 	  if(!hasFocus) 						// Вызывается при потере фокуса
 		if(onWorkListener != null) onWorkListener.onWork(
-				mType,getTag().toString(),mainEText.getText().toString())	;});
+				mType,mUiId,mainEText.getText().toString())	;});
 
 	mainEText.setOnEditorActionListener((v,actionId,event)->{
 	  if (actionId == EditorInfo.IME_ACTION_DONE ||
 			  (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) {
 		if(onWorkListener != null) onWorkListener.onWork(
-				mType,getTag().toString(),mainEText.getText().toString())	;
+				mType,mUiId,mainEText.getText().toString())	;
 		return true						;} // Событие обработано
 	  return false						;});
   }
